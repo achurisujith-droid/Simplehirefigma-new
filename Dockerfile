@@ -45,7 +45,7 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# Copy node_modules (production only)
+# Copy node_modules from deps stage (includes all dependencies needed for runtime)
 COPY --from=deps /app/backend/node_modules ./node_modules
 
 # Copy Prisma schema and migrations

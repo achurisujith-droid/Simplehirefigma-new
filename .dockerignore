@@ -55,7 +55,6 @@ docs
 .editorconfig
 .prettierrc
 .eslintrc*
-tsconfig.json
 nixpacks.toml
 railway.toml
 Procfile

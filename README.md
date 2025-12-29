@@ -773,6 +773,6 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 **Made with ❤️ by the Simplehire Team**
 
-[Website](https://simplehire.ai) • [Documentation](Simplehirefigma-main/src/COMPLETE_SETUP_GUIDE.md) • [Report Bug](https://github.com/achurisujith-droid/Simplehirefigma-new/issues) • [Request Feature](https://github.com/achurisujith-droid/Simplehirefigma-new/issues)
+[Documentation](Simplehirefigma-main/src/COMPLETE_SETUP_GUIDE.md) • [Report Bug](https://github.com/achurisujith-droid/Simplehirefigma-new/issues) • [Request Feature](https://github.com/achurisujith-droid/Simplehirefigma-new/issues)
 
 </div>

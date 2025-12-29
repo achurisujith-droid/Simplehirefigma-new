@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import config from '../config';
 import { TokenPayload } from '../types';
 
@@ -9,9 +9,11 @@ export const generateAccessToken = (userId: string, email: string): string => {
     type: 'access',
   };
 
-  return jwt.sign(payload, config.jwt.secret, {
+  const options: SignOptions = {
     expiresIn: config.jwt.expiresIn,
-  });
+  };
+
+  return jwt.sign(payload, config.jwt.secret, options);
 };
 
 export const generateRefreshToken = (userId: string, email: string): string => {
@@ -21,9 +23,11 @@ export const generateRefreshToken = (userId: string, email: string): string => {
     type: 'refresh',
   };
 
-  return jwt.sign(payload, config.jwt.refreshSecret, {
+  const options: SignOptions = {
     expiresIn: config.jwt.refreshExpiresIn,
-  });
+  };
+
+  return jwt.sign(payload, config.jwt.refreshSecret, options);
 };
 
 export const verifyAccessToken = (token: string): TokenPayload => {

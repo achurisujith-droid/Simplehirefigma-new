@@ -53,6 +53,7 @@ COPY Simplehirefigma-main/src/backend/prisma ./prisma
 
 # Copy built application
 COPY --from=builder /app/backend/dist ./dist
+COPY Simplehirefigma-main/src/backend/config ./dist/config
 
 # Generate Prisma Client in production image
 RUN npx prisma generate

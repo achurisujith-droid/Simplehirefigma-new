@@ -342,7 +342,17 @@ export async function evaluateWithMultiLLM(
   providers?: LLMProvider[]
 ): Promise<ArbitratedResult> {
   try {
-    const selectedProviders = providers || (config.multiLLM.providers as LLMProvider[]);
+    // Validate and filter providers
+    const validProviders: LLMProvider[] = ['gpt-4o', 'claude-3-5-sonnet'];
+    const configProviders = (config.multiLLM.providers || []) as string[];
+    const selectedProviders = providers || configProviders
+      .filter((p): p is LLMProvider => validProviders.includes(p as LLMProvider));
+    
+    if (selectedProviders.length === 0) {
+      // Default to GPT-4o if no valid providers configured
+      selectedProviders.push('gpt-4o');
+    }
+
     logger.info(`Starting multi-LLM evaluation with providers: ${selectedProviders.join(', ')}`);
 
     // Run evaluations in parallel

@@ -92,6 +92,11 @@ export interface ComprehensiveEvaluation {
 }
 
 /**
+ * Default category score used when multi-LLM evaluation is unavailable
+ */
+const DEFAULT_FALLBACK_CATEGORY_SCORE = 70;
+
+/**
  * Calculate MCQ score from answers
  */
 function calculateMCQScore(
@@ -197,10 +202,10 @@ export async function evaluateInterview(
       
       // Derive category scores from component scores (approximate)
       categoryScores = {
-        technicalAccuracy: componentScores.mcq || 70,
-        problemSolving: componentScores.code || 70,
-        communication: componentScores.voice || 70,
-        codeQuality: componentScores.code || 70,
+        technicalAccuracy: componentScores.mcq || DEFAULT_FALLBACK_CATEGORY_SCORE,
+        problemSolving: componentScores.code || DEFAULT_FALLBACK_CATEGORY_SCORE,
+        communication: componentScores.voice || DEFAULT_FALLBACK_CATEGORY_SCORE,
+        codeQuality: componentScores.code || DEFAULT_FALLBACK_CATEGORY_SCORE,
       };
 
       strengths = aggregated.strengths;

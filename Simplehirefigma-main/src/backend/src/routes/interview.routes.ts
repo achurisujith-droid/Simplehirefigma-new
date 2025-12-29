@@ -379,8 +379,9 @@ router.post('/:interviewId/re-evaluate', async (req: AuthRequest, res: Response,
     const { interviewId } = req.params;
     const { forceMultiLLM } = req.body;
 
-    // TODO: Add admin authentication check here
-    // For now, we allow authenticated users to re-evaluate their own interviews
+    // TODO: Implement proper admin authentication middleware
+    // For now, we restrict re-evaluation to the interview owner only
+    // In production, this should be restricted to admin users only
 
     // Get the assessment plan
     const assessmentPlan = await prisma.assessmentPlan.findFirst({
@@ -399,13 +400,16 @@ router.post('/:interviewId/re-evaluate', async (req: AuthRequest, res: Response,
     // Prepare evaluation input from stored data
     const evaluationInput = {
       voiceAnswers: plan.voiceAnswers || [],
-      mcqAnswers: plan.mcqAnswers?.map((q: any, idx: number) => ({
-        questionId: q.id,
-        questionText: q.questionText,
-        selectedAnswer: plan.mcqUserAnswers?.[idx],
-        correctAnswer: q.options[q.correctAnswerIndex],
-        isCorrect: plan.mcqUserAnswers?.[idx] === q.correctAnswerIndex,
-      })) || [],
+      mcqAnswers: plan.mcqAnswers?.map((q: any, idx: number) => {
+        const userAnswerIndex = plan.mcqUserAnswers?.[idx];
+        return {
+          questionId: q.id,
+          questionText: q.questionText,
+          selectedAnswer: q.options[userAnswerIndex] || '',
+          correctAnswer: q.options[q.correctAnswerIndex],
+          isCorrect: userAnswerIndex === q.correctAnswerIndex,
+        };
+      }) || [],
       codingAnswers: plan.codingAnswers || [],
       candidateProfile: {
         role: plan.classification?.roleCategory || 'Unknown',

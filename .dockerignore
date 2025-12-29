@@ -1,0 +1,59 @@
+# Dependencies
+node_modules
+*/node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing
+coverage
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+__tests__
+
+# Development files
+.env.local
+.env.development
+*.local
+
+# Build outputs (we'll build fresh)
+dist
+build
+.next
+out
+
+# Git
+.git
+.gitignore
+.gitattributes
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+logs
+*.log
+
+# Documentation
+*.md
+!README.md
+docs
+
+# CI/CD
+.github
+.gitlab-ci.yml
+
+# Other config files not needed in container
+.editorconfig
+.prettierrc
+.eslintrc*
+nixpacks.toml
+railway.toml
+Procfile

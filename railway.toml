@@ -1,10 +1,9 @@
 [build]
-builder = "NIXPACKS"
-buildCommand = "cd Simplehirefigma-main/src/backend && npm install && npx prisma generate && npm run build"
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "cd Simplehirefigma-main/src/backend && npx prisma migrate deploy && npm start"
 healthcheckPath = "/health"
-healthcheckTimeout = 30
+healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10

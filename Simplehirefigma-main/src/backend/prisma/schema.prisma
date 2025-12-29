@@ -1,0 +1,197 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  name          String
+  emailVerified Boolean   @default(false) @map("email_verified")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  userData         UserData?
+  references       Reference[]
+  certificates     Certificate[]
+  payments         Payment[]
+  interviewSession InterviewSession[]
+  idVerification   IDVerification?
+  refreshTokens    RefreshToken[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model UserData {
+  id                     String   @id @default(uuid())
+  userId                 String   @unique @map("user_id")
+  purchasedProducts      String[] @default([]) @map("purchased_products")
+  interviewProgress      Json     @default("{}") @map("interview_progress")
+  idVerificationStatus   String   @default("not-started") @map("id_verification_status")
+  referenceCheckStatus   String   @default("not-started") @map("reference_check_status")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_data")
+}
+
+model Reference {
+  id                   String    @id @default(uuid())
+  userId               String    @map("user_id")
+  name                 String
+  email                String
+  company              String
+  position             String
+  relationship         String
+  phone                String?
+  status               String    @default("draft")
+  submittedAt          DateTime? @map("submitted_at")
+  responseReceivedAt   DateTime? @map("response_received_at")
+  verifiedAt           DateTime? @map("verified_at")
+  responseData         Json?     @map("response_data")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@map("references")
+}
+
+model Certificate {
+  id                String   @id @default(uuid())
+  userId            String   @map("user_id")
+  productId         String   @map("product_id")
+  certificateNumber String   @unique @map("certificate_number")
+  issueDate         DateTime @default(now()) @map("issue_date")
+  status            String   @default("active")
+  skillsData        Json?    @map("skills_data")
+  pdfUrl            String?  @map("pdf_url")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([certificateNumber])
+  @@map("certificates")
+}
+
+model Payment {
+  id               String   @id @default(uuid())
+  userId           String   @map("user_id")
+  productId        String   @map("product_id")
+  amount           Int
+  currency         String   @default("usd")
+  status           String
+  paymentIntentId  String   @unique @map("payment_intent_id")
+  paymentMethodId  String?  @map("payment_method_id")
+  invoiceUrl       String?  @map("invoice_url")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([paymentIntentId])
+  @@map("payments")
+}
+
+model InterviewSession {
+  id                String    @id @default(uuid())
+  userId            String    @map("user_id")
+  role              String
+  status            String    @default("in-progress")
+  documentsUploaded Boolean   @default(false) @map("documents_uploaded")
+  resumeUrl         String?   @map("resume_url")
+  coverLetterUrl    String?   @map("cover_letter_url")
+  voiceRecordingUrl String?   @map("voice_recording_url")
+  mcqScore          Int?      @map("mcq_score")
+  mcqTotalQuestions Int?      @map("mcq_total_questions")
+  mcqAnswers        Json?     @map("mcq_answers")
+  codingSubmission  String?   @map("coding_submission")
+  codingPassed      Boolean?  @map("coding_passed")
+  evaluationData    Json?     @map("evaluation_data")
+  completedAt       DateTime? @map("completed_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("interview_sessions")
+}
+
+model IDVerification {
+  id              String    @id @default(uuid())
+  userId          String    @unique @map("user_id")
+  idDocumentUrl   String?   @map("id_document_url")
+  idDocumentType  String?   @map("id_document_type")
+  visaDocumentUrl String?   @map("visa_document_url")
+  visaDocumentType String?  @map("visa_document_type")
+  selfieUrl       String?   @map("selfie_url")
+  status          String    @default("not-started")
+  submittedAt     DateTime? @map("submitted_at")
+  reviewedAt      DateTime? @map("reviewed_at")
+  reviewNotes     String?   @map("review_notes")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("id_verifications")
+}
+
+model MCQQuestion {
+  id             String   @id @default(uuid())
+  role           String
+  question       String
+  options        String[]
+  correctAnswer  Int      @map("correct_answer")
+  category       String
+  difficulty     String
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([role])
+  @@index([difficulty])
+  @@map("mcq_questions")
+}
+
+model CodingChallenge {
+  id          String   @id @default(uuid())
+  role        String
+  title       String
+  description String
+  difficulty  String
+  starterCode String   @map("starter_code")
+  testCases   Json     @map("test_cases")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([role])
+  @@index([difficulty])
+  @@map("coding_challenges")
+}

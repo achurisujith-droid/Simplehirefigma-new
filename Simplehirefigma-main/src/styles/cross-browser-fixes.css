@@ -1,0 +1,230 @@
+/**
+ * Cross-Browser Compatibility Fixes
+ * Ensures consistent rendering across Chrome, Firefox, Safari, Edge, and other browsers
+ */
+
+/* Force box-sizing on all elements */
+*,
+*::before,
+*::after {
+  -webkit-box-sizing: border-box;
+  -moz-box-sizing: border-box;
+  box-sizing: border-box;
+}
+
+/* Smooth scrolling support */
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Flexbox gap fallback for older browsers */
+.flex.gap-1 > * + * { margin-left: 0.25rem; }
+.flex.gap-2 > * + * { margin-left: 0.5rem; }
+.flex.gap-3 > * + * { margin-left: 0.75rem; }
+.flex.gap-4 > * + * { margin-left: 1rem; }
+.flex.gap-5 > * + * { margin-left: 1.25rem; }
+.flex.gap-6 > * + * { margin-left: 1.5rem; }
+.flex.gap-8 > * + * { margin-left: 2rem; }
+
+.flex.flex-col.gap-1 > * + * { margin-left: 0; margin-top: 0.25rem; }
+.flex.flex-col.gap-2 > * + * { margin-left: 0; margin-top: 0.5rem; }
+.flex.flex-col.gap-3 > * + * { margin-left: 0; margin-top: 0.75rem; }
+.flex.flex-col.gap-4 > * + * { margin-left: 0; margin-top: 1rem; }
+.flex.flex-col.gap-5 > * + * { margin-left: 0; margin-top: 1.25rem; }
+.flex.flex-col.gap-6 > * + * { margin-left: 0; margin-top: 1.5rem; }
+.flex.flex-col.gap-8 > * + * { margin-left: 0; margin-top: 2rem; }
+
+/* Grid gap fallback - only if gap is not supported */
+@supports not (gap: 1rem) {
+  .grid.gap-1 > * { margin: 0.125rem; }
+  .grid.gap-2 > * { margin: 0.25rem; }
+  .grid.gap-3 > * { margin: 0.375rem; }
+  .grid.gap-4 > * { margin: 0.5rem; }
+  .grid.gap-5 > * { margin: 0.625rem; }
+  .grid.gap-6 > * { margin: 0.75rem; }
+  .grid.gap-8 > * { margin: 1rem; }
+}
+
+/* Ensure consistent border-radius rendering */
+.rounded,
+.rounded-lg,
+.rounded-xl {
+  -webkit-border-radius: inherit;
+  -moz-border-radius: inherit;
+  border-radius: inherit;
+}
+
+/* Better button rendering */
+button,
+[role="button"] {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}
+
+/* Input consistency */
+input,
+select,
+textarea {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* Focus visible for accessibility */
+*:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+
+/* Prevent text size adjustment on mobile */
+input,
+textarea,
+select,
+button {
+  font-size: 100%;
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Better image rendering */
+img {
+  max-width: 100%;
+  height: auto;
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+  user-drag: none;
+}
+
+/* Ensure transforms work across browsers */
+.transform {
+  -webkit-transform: translate(0, 0);
+  -moz-transform: translate(0, 0);
+  transform: translate(0, 0);
+}
+
+/* Transition support */
+.transition,
+.transition-all,
+.transition-colors,
+.transition-opacity {
+  -webkit-transition: inherit;
+  -moz-transition: inherit;
+  -o-transition: inherit;
+  transition: inherit;
+}
+
+/* Shadow rendering */
+.shadow,
+.shadow-sm,
+.shadow-md,
+.shadow-lg,
+.shadow-xl {
+  -webkit-box-shadow: inherit;
+  -moz-box-shadow: inherit;
+  box-shadow: inherit;
+}
+
+/* Prevent zoom on iOS input focus */
+@media screen and (max-width: 768px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Better select dropdown rendering */
+select {
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 1.5em 1.5em;
+  padding-right: 2.5rem;
+}
+
+/* Scrollbar styling for consistency */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+/* Print styles */
+@media print {
+  *,
+  *::before,
+  *::after {
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+}
+
+/* Prevent horizontal overflow */
+body {
+  overflow-x: hidden;
+}
+
+/* Better flex wrapping */
+.flex-wrap {
+  -webkit-flex-wrap: wrap;
+  -ms-flex-wrap: wrap;
+  flex-wrap: wrap;
+}
+
+/* Grid support check and fallback */
+@supports not (display: grid) {
+  .grid {
+    display: -webkit-box;
+    display: -webkit-flex;
+    display: -ms-flexbox;
+    display: flex;
+    -webkit-flex-wrap: wrap;
+    -ms-flex-wrap: wrap;
+    flex-wrap: wrap;
+  }
+  
+  .grid-cols-2 > * {
+    width: 50%;
+  }
+  
+  .grid-cols-3 > * {
+    width: 33.333%;
+  }
+  
+  .grid-cols-4 > * {
+    width: 25%;
+  }
+}

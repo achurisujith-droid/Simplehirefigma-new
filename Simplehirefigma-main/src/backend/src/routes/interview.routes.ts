@@ -10,6 +10,54 @@ import prisma from '../config/database';
 import { mcqGeneratorService } from '../modules/assessment/mcq-generator.service';
 import { codeGeneratorService } from '../modules/assessment/code-generator.service';
 import { componentEvaluatorService } from '../modules/assessment/component-evaluator.service';
+import { interviewEvaluatorService } from '../modules/assessment/interview-evaluator.service';
+
+// Type for stored evaluation data
+interface StoredEvaluation {
+  overallScore: number;
+  categoryScores: {
+    technicalAccuracy: number;
+    communicationClarity: number;
+    problemSolving: number;
+    experienceAlignment: number;
+  };
+  strengths: string[];
+  areasForImprovement: string[];
+  summary: string;
+  recommendation: 'strong_hire' | 'hire' | 'maybe_hire' | 'no_hire';
+  confidenceLevel: 'high' | 'medium' | 'low';
+  evaluationAgreement: string;
+  selectedProvider: string;
+  arbiterSkipped: boolean;
+  providerResults?: any[];
+}
+
+// Type for interview plan data
+interface InterviewPlanData {
+  voiceAnswers?: Array<{
+    questionId?: string;
+    id?: string;
+    question: string;
+    transcript?: string;
+    answer?: string;
+  }>;
+  mcqAnswers?: Array<{
+    questionId?: string;
+    id?: string;
+    question: string;
+    selectedOption: string;
+    correctOption: string;
+    isCorrect: boolean;
+  }>;
+  codeAnswers?: Array<{
+    questionId?: string;
+    id?: string;
+    question: string;
+    language: string;
+    submission: string;
+  }>;
+  [key: string]: any;
+}
 
 const router = Router();
 const upload = multer({ 
@@ -269,15 +317,143 @@ router.post('/coding/submit', async (req: AuthRequest, res: Response, next: Next
   }
 });
 
-// Get evaluation results
+// Get evaluation results - Multi-LLM Arbiter Implementation
 router.get('/evaluation', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    if (!req.user) {
+      throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+    }
+
+    // Get the latest assessment plan for this user
+    const assessmentPlan = await prisma.assessmentPlan.findFirst({
+      where: { 
+        userId: req.user.id,
+      },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        interviews: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        }
+      }
+    });
+
+    if (!assessmentPlan) {
+      throw new AppError('No assessment found', 404, 'NOT_FOUND');
+    }
+
+    const interview = assessmentPlan.interviews[0];
+
+    // If evaluation already exists, return it
+    if (interview && interview.evaluation) {
+      const evaluation = interview.evaluation as unknown as StoredEvaluation;
+      return res.json({
+        success: true,
+        data: {
+          overallScore: evaluation.overallScore,
+          categoryScores: evaluation.categoryScores,
+          strengths: evaluation.strengths,
+          areasForImprovement: evaluation.areasForImprovement,
+          summary: evaluation.summary,
+          recommendation: evaluation.recommendation,
+          confidenceLevel: evaluation.confidenceLevel,
+          evaluationAgreement: evaluation.evaluationAgreement,
+          selectedProvider: evaluation.selectedProvider,
+          arbiterSkipped: evaluation.arbiterSkipped,
+          evaluatedAt: interview.updatedAt,
+        },
+      });
+    }
+
+    // Generate evaluation using multi-LLM arbiter
+    // Gather interview data from interviewPlan
+    const interviewPlan = assessmentPlan.interviewPlan as unknown as InterviewPlanData;
+    const voiceAnswers = interviewPlan.voiceAnswers || [];
+    const mcqAnswers = interviewPlan.mcqAnswers || [];
+    const codeAnswers = interviewPlan.codeAnswers || [];
+
+    // Run multi-LLM evaluation
+    const result = await interviewEvaluatorService.evaluateInterview({
+      candidateName: req.user.name,
+      candidateEmail: req.user.email,
+      resumeText: assessmentPlan.resumeText,
+      voiceAnswers: voiceAnswers.map((va: any) => ({
+        questionId: va.questionId || va.id,
+        question: va.question,
+        answer: va.transcript || va.answer,
+      })),
+      mcqAnswers: mcqAnswers.map((mcq: any) => ({
+        questionId: mcq.questionId || mcq.id,
+        question: mcq.question,
+        selectedOption: mcq.selectedOption,
+        correctOption: mcq.correctOption,
+        isCorrect: mcq.isCorrect,
+      })),
+      codeAnswers: codeAnswers.map((code: any) => ({
+        questionId: code.questionId || code.id,
+        question: code.question,
+        language: code.language,
+        code: code.submission,
+      })),
+    });
+
+    // Store evaluation in interview record
+    const evaluationData = {
+      overallScore: result.finalScore,
+      categoryScores: result.categoryScores,
+      strengths: result.strengths,
+      areasForImprovement: result.improvements,
+      summary: result.summary,
+      recommendation: result.recommendation,
+      confidenceLevel: result.confidenceLevel,
+      evaluationAgreement: result.evaluationAgreement,
+      selectedProvider: result.selectedProvider,
+      arbiterSkipped: result.arbiterSkipped,
+      providerResults: result.providerResults,
+    };
+
+    // Create or update interview record with evaluation
+    if (interview) {
+      await prisma.interview.update({
+        where: { id: interview.id },
+        data: {
+          evaluation: evaluationData,
+          score: result.finalScore,
+          status: 'COMPLETED',
+          completedAt: new Date(),
+        },
+      });
+    } else {
+      await prisma.interview.create({
+        data: {
+          userId: req.user.id,
+          assessmentPlanId: assessmentPlan.id,
+          questions: {},
+          answers: {},
+          evaluation: evaluationData,
+          score: result.finalScore,
+          status: 'COMPLETED',
+          completedAt: new Date(),
+        },
+      });
+    }
+
+    // Return evaluation results
     res.json({
       success: true,
-      data: [
-        { category: 'React Fundamentals', score: 92, feedback: 'Excellent' },
-        { category: 'JavaScript', score: 88, feedback: 'Strong skills' },
-      ],
+      data: {
+        overallScore: result.finalScore,
+        categoryScores: result.categoryScores,
+        strengths: result.strengths,
+        areasForImprovement: result.improvements,
+        summary: result.summary,
+        recommendation: result.recommendation,
+        confidenceLevel: result.confidenceLevel,
+        evaluationAgreement: result.evaluationAgreement,
+        selectedProvider: result.selectedProvider,
+        arbiterSkipped: result.arbiterSkipped,
+        evaluatedAt: new Date(),
+      },
     });
   } catch (error) {
     next(error);

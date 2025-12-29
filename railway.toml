@@ -5,6 +5,6 @@ buildCommand = "cd Simplehirefigma-main/src/backend && npm install && npx prisma
 [deploy]
 startCommand = "cd Simplehirefigma-main/src/backend && npx prisma migrate deploy && npm start"
 healthcheckPath = "/health"
-healthcheckTimeout = 100
+healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10

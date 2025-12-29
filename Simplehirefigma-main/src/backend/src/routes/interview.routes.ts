@@ -417,7 +417,7 @@ router.get('/evaluation', async (req: AuthRequest, res: Response, next: NextFunc
       await prisma.interview.update({
         where: { id: interview.id },
         data: {
-          evaluation: evaluationData,
+          evaluation: evaluationData as any,
           score: result.finalScore,
           status: 'COMPLETED',
           completedAt: new Date(),
@@ -430,7 +430,7 @@ router.get('/evaluation', async (req: AuthRequest, res: Response, next: NextFunc
           assessmentPlanId: assessmentPlan.id,
           questions: {},
           answers: {},
-          evaluation: evaluationData,
+          evaluation: evaluationData as any,
           score: result.finalScore,
           status: 'COMPLETED',
           completedAt: new Date(),

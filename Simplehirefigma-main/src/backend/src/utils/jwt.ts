@@ -10,7 +10,7 @@ export const generateAccessToken = (userId: string, email: string): string => {
   };
 
   const options: SignOptions = {
-    expiresIn: config.jwt.expiresIn,
+    expiresIn: config.jwt.expiresIn as any,
   };
 
   return jwt.sign(payload, config.jwt.secret, options);
@@ -24,7 +24,7 @@ export const generateRefreshToken = (userId: string, email: string): string => {
   };
 
   const options: SignOptions = {
-    expiresIn: config.jwt.refreshExpiresIn,
+    expiresIn: config.jwt.refreshExpiresIn as any,
   };
 
   return jwt.sign(payload, config.jwt.refreshSecret, options);

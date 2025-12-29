@@ -32,9 +32,9 @@ COPY --from=builder /app/prisma ./prisma
 # Expose port
 EXPOSE 3000
 
-# Health check
+# Health check using wget (more reliable)
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 
 # Run migrations and start
 CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]

@@ -56,6 +56,9 @@ export async function evaluateMCQAnswer(
       feedback = `Incorrect. You selected: ${selectedOption}. The correct answer is: ${correctOption}.`;
     }
     
+    // Log for analytics (questionText is used here for future enhancements)
+    logger.debug(`MCQ evaluation for question: ${questionText.substring(0, 50)}...`);
+    
     return {
       isCorrect,
       feedback,

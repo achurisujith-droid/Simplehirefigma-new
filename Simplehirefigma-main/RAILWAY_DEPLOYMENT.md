@@ -217,6 +217,8 @@ Railway PostgreSQL includes:
 
 ## Cost Estimation
 
+**Note:** Prices are estimates as of December 2024 and may change. Always verify current pricing at respective service providers.
+
 ### Railway Costs
 - Starter plan: $5/month
 - Includes: 500 hours runtime, 512MB RAM, 1GB disk
@@ -231,6 +233,8 @@ Per assessment:
 **Total per candidate: ~$0.11**
 
 For 1000 assessments/month: ~$110
+
+**Important:** Verify current OpenAI pricing at https://openai.com/pricing
 
 ### AWS S3 Costs
 - Storage: $0.023 per GB

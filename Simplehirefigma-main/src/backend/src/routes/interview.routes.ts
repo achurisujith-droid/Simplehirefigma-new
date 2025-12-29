@@ -201,7 +201,7 @@ router.get('/coding', async (req: AuthRequest, res: Response, next: NextFunction
         success: true,
         data: plan.codingChallenges.map((c: any) => ({
           id: c.id,
-          title: c.questionText.split('\n')[0].substring(0, 100),
+          title: c.questionText ? c.questionText.split('\n')[0].substring(0, 100) : 'Coding Challenge',
           description: c.questionText,
           difficulty: c.difficulty,
           evaluationCriteria: c.evaluationCriteria,
@@ -240,7 +240,7 @@ router.get('/coding', async (req: AuthRequest, res: Response, next: NextFunction
       success: true,
       data: codingChallenges.map(c => ({
         id: c.id,
-        title: c.questionText.split('\n')[0].substring(0, 100),
+        title: c.questionText ? c.questionText.split('\n')[0].substring(0, 100) : 'Coding Challenge',
         description: c.questionText,
         difficulty: c.difficulty,
         evaluationCriteria: c.evaluationCriteria,
@@ -439,7 +439,7 @@ router.get('/assessment-plan/:sessionId', async (req: AuthRequest, res: Response
         })) || [],
         codingChallenges: plan?.codingChallenges?.map((c: any) => ({
           id: c.id,
-          title: c.questionText.split('\n')[0].substring(0, 100),
+          title: c.questionText ? c.questionText.split('\n')[0].substring(0, 100) : 'Coding Challenge',
           description: c.questionText,
           difficulty: c.difficulty,
           language: c.language

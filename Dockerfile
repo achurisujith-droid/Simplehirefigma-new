@@ -16,7 +16,7 @@ COPY Simplehirefigma-main/src/backend/prisma ./backend/prisma/
 
 # Install backend dependencies (including devDependencies for build)
 WORKDIR /app/backend
-RUN npm ci
+RUN npm install
 
 # ============================================
 # Builder stage - generate Prisma client and build TypeScript

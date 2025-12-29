@@ -10,6 +10,7 @@ import prisma from '../config/database';
 import { mcqGeneratorService } from '../modules/assessment/mcq-generator.service';
 import { codeGeneratorService } from '../modules/assessment/code-generator.service';
 import { componentEvaluatorService } from '../modules/assessment/component-evaluator.service';
+import { interviewEvaluatorService } from '../modules/assessment/interview-evaluator.service';
 
 const router = Router();
 const upload = multer({ 
@@ -295,6 +296,158 @@ router.post('/certificate', async (req: AuthRequest, res: Response, next: NextFu
         certificateId: 'cert_' + Date.now(),
         certificateUrl: `${config.appUrl}/certificate/${certificateNumber}`,
         certificateNumber,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/interviews/evaluate - Comprehensive interview evaluation with multi-LLM arbiter
+router.post('/evaluate', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const {
+      voiceAnswers,
+      mcqAnswers,
+      codingAnswers,
+      candidateProfile,
+      componentScores,
+      useMultiLLM,
+    } = req.body;
+
+    // Validate required data
+    if (!candidateProfile) {
+      throw new AppError('candidateProfile is required', 400, 'VALIDATION_ERROR');
+    }
+
+    // Perform comprehensive evaluation
+    const evaluation = await interviewEvaluatorService.evaluateInterview(
+      {
+        voiceAnswers,
+        mcqAnswers,
+        codingAnswers,
+        candidateProfile,
+        componentScores,
+      },
+      useMultiLLM
+    );
+
+    // Store evaluation in the latest assessment plan
+    const assessmentPlan = await prisma.assessmentPlan.findFirst({
+      where: { userId: req.user!.id },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (assessmentPlan) {
+      const plan = assessmentPlan.interviewPlan as any;
+      await prisma.assessmentPlan.update({
+        where: { id: assessmentPlan.id },
+        data: {
+          interviewPlan: {
+            ...plan,
+            evaluation: evaluation,
+          },
+          status: 'COMPLETED',
+        },
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        overallScore: evaluation.overallScore,
+        skillLevel: evaluation.skillLevel,
+        categoryScores: evaluation.categoryScores,
+        componentScores: evaluation.componentScores,
+        strengths: evaluation.strengths,
+        improvements: evaluation.improvements,
+        recommendation: evaluation.recommendation,
+        rationale: evaluation.rationale,
+        multiLLMEnabled: evaluation.multiLLMEnabled,
+        providersUsed: evaluation.providersUsed,
+        evaluatedAt: evaluation.evaluatedAt,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/interviews/:interviewId/re-evaluate - Admin re-evaluation endpoint
+router.post('/:interviewId/re-evaluate', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { interviewId } = req.params;
+    const { forceMultiLLM } = req.body;
+
+    // TODO: Add admin authentication check here
+    // For now, we allow authenticated users to re-evaluate their own interviews
+
+    // Get the assessment plan
+    const assessmentPlan = await prisma.assessmentPlan.findFirst({
+      where: {
+        id: interviewId,
+        userId: req.user!.id, // Ensure user owns this assessment
+      },
+    });
+
+    if (!assessmentPlan) {
+      throw new AppError('Assessment plan not found', 404, 'NOT_FOUND');
+    }
+
+    const plan = assessmentPlan.interviewPlan as any;
+
+    // Prepare evaluation input from stored data
+    const evaluationInput = {
+      voiceAnswers: plan.voiceAnswers || [],
+      mcqAnswers: plan.mcqAnswers?.map((q: any, idx: number) => ({
+        questionId: q.id,
+        questionText: q.questionText,
+        selectedAnswer: plan.mcqUserAnswers?.[idx],
+        correctAnswer: q.options[q.correctAnswerIndex],
+        isCorrect: plan.mcqUserAnswers?.[idx] === q.correctAnswerIndex,
+      })) || [],
+      codingAnswers: plan.codingAnswers || [],
+      candidateProfile: {
+        role: plan.classification?.roleCategory || 'Unknown',
+        experience: `${plan.classification?.yearsExperience || 0} years`,
+        skills: plan.classification?.keySkills || [],
+      },
+    };
+
+    // Re-evaluate with multi-LLM arbiter
+    const evaluation = await interviewEvaluatorService.reEvaluateInterview(
+      evaluationInput,
+      forceMultiLLM ?? true
+    );
+
+    // Update assessment plan with new evaluation
+    await prisma.assessmentPlan.update({
+      where: { id: assessmentPlan.id },
+      data: {
+        interviewPlan: {
+          ...plan,
+          evaluation: evaluation,
+          reEvaluatedAt: new Date().toISOString(),
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        message: 'Interview re-evaluated successfully',
+        evaluation: {
+          overallScore: evaluation.overallScore,
+          skillLevel: evaluation.skillLevel,
+          categoryScores: evaluation.categoryScores,
+          strengths: evaluation.strengths,
+          improvements: evaluation.improvements,
+          recommendation: evaluation.recommendation,
+          rationale: evaluation.rationale,
+          multiLLMEnabled: evaluation.multiLLMEnabled,
+          providersUsed: evaluation.providersUsed,
+          evaluatedAt: evaluation.evaluatedAt,
+        },
       },
     });
   } catch (error) {

@@ -39,6 +39,13 @@ interface Config {
   openai: {
     apiKey: string;
   };
+  anthropic: {
+    apiKey: string;
+  };
+  multiLLM: {
+    providers: string[];
+    enableArbiter: boolean;
+  };
   rateLimit: {
     windowMs: number;
     maxRequests: number;
@@ -88,6 +95,13 @@ export const config: Config = {
   },
   openai: {
     apiKey: process.env.OPENAI_API_KEY || '',
+  },
+  anthropic: {
+    apiKey: process.env.ANTHROPIC_API_KEY || '',
+  },
+  multiLLM: {
+    providers: process.env.LLM_PROVIDERS?.split(',').map(p => p.trim()) || ['gpt-4o'],
+    enableArbiter: process.env.ENABLE_MULTI_LLM_ARBITER === 'true',
   },
   rateLimit: {
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),

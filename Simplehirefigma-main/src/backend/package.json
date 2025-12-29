@@ -27,6 +27,7 @@
   "author": "Simplehire Team",
   "license": "MIT",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2",
     "@prisma/client": "^5.8.0",
     "aws-sdk": "^2.1522.0",
     "bcrypt": "^6.0.0",

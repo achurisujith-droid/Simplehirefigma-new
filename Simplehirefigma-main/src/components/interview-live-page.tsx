@@ -4,12 +4,13 @@ import { Button } from "./ui/button";
 
 interface InterviewLivePageProps {
   onComplete: () => void;
+  sessionId?: string;
 }
 
 interface Question {
-  id: number;
+  id: string;
   text: string;
-  category: string;
+  topic: string;
 }
 
 interface ProctoringAlert {
@@ -19,11 +20,13 @@ interface ProctoringAlert {
   time: string;
 }
 
-export function InterviewLivePage({ onComplete }: InterviewLivePageProps) {
+export function InterviewLivePage({ onComplete, sessionId }: InterviewLivePageProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const speechSynthRef = useRef<SpeechSynthesisUtterance | null>(null);
   const currentIndexRef = useRef<number>(0); // Track current index to avoid closure issues
   
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [hasPermission, setHasPermission] = useState(false);
   const [isAISpeaking, setIsAISpeaking] = useState(false);
   const [isUserSpeaking, setIsUserSpeaking] = useState(false);
@@ -36,36 +39,80 @@ export function InterviewLivePage({ onComplete }: InterviewLivePageProps) {
   const [proctoringAlerts, setProctoringAlerts] = useState<ProctoringAlert[]>([]);
   const [audioWaveform, setAudioWaveform] = useState<number[]>(Array(20).fill(30));
 
-  const questions: Question[] = [
-    {
-      id: 1,
-      text: "Tell me about your experience with React. What projects have you built and what attracted you to React development?",
-      category: "Background & Experience"
-    },
-    {
-      id: 2,
-      text: "Describe a complex problem you solved recently. What was the challenge, how did you approach it, and what was the outcome?",
-      category: "Problem Solving"
-    },
-    {
-      id: 3,
-      text: "How do you optimize application performance? Can you explain specific techniques you've used in your projects?",
-      category: "Technical Knowledge"
-    },
-    {
-      id: 4,
-      text: "Tell me about a time you had to debug a difficult bug. What tools and strategies did you use to identify and fix the issue?",
-      category: "Debugging Skills"
-    },
-    {
-      id: 5,
-      text: "Where do you see yourself growing as a developer? What new technologies or skills are you currently learning?",
-      category: "Career Goals"
+  // Fetch voice questions from backend
+  useEffect(() => {
+    async function loadVoiceQuestions() {
+      try {
+        setIsLoading(true);
+        
+        const token = localStorage.getItem('token');
+        if (!token) {
+          console.warn('No authentication token found, using fallback questions');
+          setDefaultQuestions();
+          return;
+        }
+
+        // Try to fetch from assessment plan if sessionId is provided
+        const endpoint = sessionId 
+          ? `/api/interviews/assessment-plan/${sessionId}`
+          : '/api/interviews/assessment-plan/latest';
+
+        const response = await fetch(endpoint, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to load voice questions');
+        }
+
+        const data = await response.json();
+        if (data.success && data.data.voiceQuestions && data.data.voiceQuestions.length > 0) {
+          setQuestions(data.data.voiceQuestions);
+        } else {
+          console.warn('No voice questions found, using fallback');
+          setDefaultQuestions();
+        }
+      } catch (error) {
+        console.error('Failed to load voice questions:', error);
+        setDefaultQuestions();
+      } finally {
+        setIsLoading(false);
+      }
     }
-  ];
+    loadVoiceQuestions();
+  }, [sessionId]);
+
+  // Set default fallback questions
+  const setDefaultQuestions = () => {
+    setQuestions([
+      {
+        id: '1',
+        text: "Tell me about your professional background and experience.",
+        topic: "Background & Experience"
+      },
+      {
+        id: '2',
+        text: "Describe a complex problem you solved recently. What was your approach?",
+        topic: "Problem Solving"
+      },
+      {
+        id: '3',
+        text: "What are your main technical skills and how have you applied them?",
+        topic: "Technical Skills"
+      }
+    ]);
+  };
 
   // Setup camera and MediaRecorder
   useEffect(() => {
+    // Don't setup media until questions are loaded
+    if (isLoading || questions.length === 0) {
+      return;
+    }
+
     async function setupMedia() {
       try {
         const mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -126,7 +173,7 @@ export function InterviewLivePage({ onComplete }: InterviewLivePageProps) {
         window.speechSynthesis.cancel();
       }
     };
-  }, []);
+  }, [isLoading, questions.length]);
 
   // Animated waveform effect when AI speaks
   useEffect(() => {
@@ -306,6 +353,18 @@ export function InterviewLivePage({ onComplete }: InterviewLivePageProps) {
     }
   }, []);
 
+  // Show loading state while questions are being fetched
+  if (isLoading) {
+    return (
+      <main className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Preparing your personalized interview...</p>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/20 to-slate-50">
       {/* Top Header - Minimal */}
@@ -325,7 +384,7 @@ export function InterviewLivePage({ onComplete }: InterviewLivePageProps) {
             <div className="flex items-center gap-3 w-full sm:w-auto">
               <div className="text-right mr-2 hidden sm:block">
                 <p className="text-xs text-slate-500">Question {currentQuestionIndex + 1} of {questions.length}</p>
-                <p className="text-sm text-slate-900">{currentQuestion ? currentQuestion.category : 'N/A'}</p>
+                <p className="text-sm text-slate-900">{currentQuestion ? currentQuestion.topic : 'N/A'}</p>
               </div>
               <Button
                 onClick={handlePauseResume}

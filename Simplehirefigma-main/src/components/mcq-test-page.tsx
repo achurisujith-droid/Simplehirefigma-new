@@ -3,10 +3,11 @@ import { CheckCircle, Clock, AlertCircle } from "lucide-react";
 import { Button } from "./ui/button";
 
 interface Question {
-  id: number;
-  text: string;
+  id: string;
+  question: string;
   options: string[];
   category: string;
+  difficulty?: string;
 }
 
 interface McqTestPageProps {
@@ -14,121 +15,55 @@ interface McqTestPageProps {
 }
 
 export function McqTestPage({ onComplete }: McqTestPageProps) {
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
-  const [timeLeft, setTimeLeft] = useState(900); // 15 minutes = 900 seconds
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, number>>({});
+  const [timeLeft, setTimeLeft] = useState(1200); // 20 minutes = 1200 seconds
   const [showWarning, setShowWarning] = useState(false);
 
-  const questions: Question[] = [
-    {
-      id: 1,
-      text: "What is the primary purpose of React's Virtual DOM?",
-      options: [
-        "To store application state",
-        "To optimize rendering performance by minimizing direct DOM manipulation",
-        "To handle routing in React applications",
-        "To manage component lifecycle"
-      ],
-      category: "Core Concepts",
-    },
-    {
-      id: 2,
-      text: "Which hook would you use to perform side effects in a functional component?",
-      options: ["useState", "useEffect", "useContext", "useReducer"],
-      category: "React Hooks",
-    },
-    {
-      id: 3,
-      text: "What does the dependency array in useEffect control?",
-      options: [
-        "Which props the component receives",
-        "When the effect should re-run",
-        "The order of hook execution",
-        "Component rendering order"
-      ],
-      category: "React Hooks",
-    },
-    {
-      id: 4,
-      text: "In React, what is the correct way to update state that depends on the previous state?",
-      options: [
-        "setState(prevState + 1)",
-        "setState((prevState) => prevState + 1)",
-        "setState = prevState + 1",
-        "updateState(prevState + 1)"
-      ],
-      category: "State Management",
-    },
-    {
-      id: 5,
-      text: "What is the purpose of React.memo()?",
-      options: [
-        "To memoize component props",
-        "To prevent unnecessary re-renders of functional components",
-        "To cache API responses",
-        "To manage component state"
-      ],
-      category: "Performance",
-    },
-    {
-      id: 6,
-      text: "Which of the following is true about React keys?",
-      options: [
-        "Keys should be unique among siblings to help React identify which items have changed",
-        "Keys are optional for list items",
-        "Index should always be used as keys",
-        "Keys are used for styling components"
-      ],
-      category: "Lists & Keys",
-    },
-    {
-      id: 7,
-      text: "What is the difference between controlled and uncontrolled components?",
-      options: [
-        "Controlled components have no state",
-        "Controlled components' form data is handled by React state, uncontrolled use DOM refs",
-        "Uncontrolled components are class-based",
-        "There is no difference"
-      ],
-      category: "Forms",
-    },
-    {
-      id: 8,
-      text: "When should you use useCallback hook?",
-      options: [
-        "To fetch data from APIs",
-        "To memoize callback functions and prevent unnecessary re-creations",
-        "To manage global state",
-        "To handle form submissions"
-      ],
-      category: "Performance",
-    },
-    {
-      id: 9,
-      text: "What is the purpose of the Context API in React?",
-      options: [
-        "To style components",
-        "To share state across the component tree without prop drilling",
-        "To handle routing",
-        "To optimize performance"
-      ],
-      category: "Context API",
-    },
-    {
-      id: 10,
-      text: "In React, what does lifting state up mean?",
-      options: [
-        "Moving state to a parent component to share it among children",
-        "Storing state in localStorage",
-        "Using global variables",
-        "Creating a new state object"
-      ],
-      category: "State Management",
-    },
-  ];
+  // Fetch MCQ questions from backend
+  useEffect(() => {
+    async function loadMCQQuestions() {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error('No authentication token found');
+        }
+
+        const response = await fetch('/api/interviews/mcq', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to load MCQ questions');
+        }
+
+        const data = await response.json();
+        if (data.success && data.data && data.data.length > 0) {
+          setQuestions(data.data);
+        } else {
+          throw new Error('No questions received from server');
+        }
+      } catch (error) {
+        console.error('Failed to load MCQ questions:', error);
+        setError(error instanceof Error ? error.message : 'Failed to load questions');
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadMCQQuestions();
+  }, []);
 
   const currentQuestion = questions[currentQuestionIndex];
-  const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+  const progress = questions.length > 0 ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0;
   const answeredCount = Object.keys(selectedAnswers).length;
 
   // Countdown timer
@@ -192,6 +127,32 @@ export function McqTestPage({ onComplete }: McqTestPageProps) {
     setCurrentQuestionIndex(index);
   };
 
+  // Show loading state
+  if (isLoading) {
+    return (
+      <main className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading your personalized MCQ test...</p>
+        </div>
+      </main>
+    );
+  }
+
+  // Show error state
+  if (error || questions.length === 0) {
+    return (
+      <main className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-slate-900 mb-2">Unable to Load Questions</h2>
+          <p className="text-slate-600 mb-4">{error || 'No questions available'}</p>
+          <Button onClick={() => window.location.reload()}>Try Again</Button>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-slate-50">
       {/* Top bar */}
@@ -242,7 +203,7 @@ export function McqTestPage({ onComplete }: McqTestPageProps) {
                   </span>
                 </div>
                 <h2 className="text-2xl text-slate-900">
-                  {currentQuestion.text}
+                  {currentQuestion.question}
                 </h2>
               </div>
 

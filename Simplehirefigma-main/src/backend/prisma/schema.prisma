@@ -12,8 +12,10 @@ datasource db {
 model User {
   id            String    @id @default(uuid())
   email         String    @unique
-  passwordHash  String    @map("password_hash")
-  name          String
+  passwordHash  String?   @map("password_hash")
+  name          String?
+  googleId      String?   @unique @map("google_id")
+  profilePicture String?  @map("profile_picture")
   emailVerified Boolean   @default(false) @map("email_verified")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
@@ -26,13 +28,16 @@ model User {
   interviewSession InterviewSession[]
   idVerification   IDVerification?
   refreshTokens    RefreshToken[]
+  sessions         Session[]
+  interviews       Interview[]
+  assessmentPlans  AssessmentPlan[]
 
   @@map("users")
 }
 
 model RefreshToken {
   id        String   @id @default(uuid())
-  token     String   @unique
+  token     String   @unique // SHA-256 hashed
   userId    String   @map("user_id")
   expiresAt DateTime @map("expires_at")
   createdAt DateTime @default(now()) @map("created_at")
@@ -40,6 +45,7 @@ model RefreshToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([expiresAt])
   @@map("refresh_tokens")
 }
 
@@ -194,4 +200,71 @@ model CodingChallenge {
   @@index([role])
   @@index([difficulty])
   @@map("coding_challenges")
+}
+
+model Session {
+  id           String    @id @default(uuid())
+  sessionId    String    @unique @map("session_id")
+  userId       String?   @map("user_id")
+  ownerId      String?   @map("owner_id")
+  status       String    @default("active")
+  data         Json
+  lastActivity DateTime  @default(now()) @map("last_activity")
+  expiryReason String?   @map("expiry_reason")
+  expiredAt    DateTime? @map("expired_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([userId])
+  @@index([lastActivity])
+  @@map("sessions")
+}
+
+model AssessmentPlan {
+  id                String   @id @default(uuid())
+  userId            String   @map("user_id")
+  resumeText        String   @map("resume_text") @db.Text
+  primarySkill      String   @map("primary_skill")
+  components        Json
+  questionCounts    Json     @map("question_counts")
+  difficulty        String
+  estimatedDuration Int?     @map("estimated_duration")
+  skillBuckets      Json?    @map("skill_buckets")
+  interviewPlan     Json     @map("interview_plan")
+  status            String   @default("DRAFT")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interviews Interview[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("assessment_plans")
+}
+
+model Interview {
+  id               String    @id @default(uuid())
+  userId           String    @map("user_id")
+  assessmentPlanId String    @map("assessment_plan_id")
+  questions        Json
+  answers          Json?
+  status           String    @default("PENDING")
+  startedAt        DateTime? @map("started_at")
+  completedAt      DateTime? @map("completed_at")
+  score            Float?
+  evaluation       Json?
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assessmentPlan AssessmentPlan @relation(fields: [assessmentPlanId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([assessmentPlanId])
+  @@index([status])
+  @@map("interviews")
 }

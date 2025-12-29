@@ -31,6 +31,7 @@ export interface SignupInput {
 export interface TokenPayload {
   userId: string;
   email: string;
+  type?: 'access' | 'refresh';
   iat?: number;
   exp?: number;
 }

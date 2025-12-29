@@ -1,0 +1,7 @@
+node_modules/
+uploads/
+dist/
+.env
+logs/*.log
+!logs/.gitkeep
+package-lock.json

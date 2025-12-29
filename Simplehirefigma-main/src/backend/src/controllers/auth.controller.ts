@@ -4,6 +4,8 @@ import prisma from '../config/database';
 import { hashPassword, comparePassword } from '../utils/password';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/jwt';
 import { AppError } from '../utils/errors';
+import { sha256Hash } from '../utils/crypto';
+import logger from '../config/logger';
 
 export const signup = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -47,14 +49,20 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
     const token = generateAccessToken(user.id, user.email);
     const refreshToken = generateRefreshToken(user.id, user.email);
 
-    // Store refresh token
+    // Hash refresh token before storing (SHA-256)
+    const hashedRefreshToken = sha256Hash(refreshToken);
+
+    // Store hashed refresh token
     await prisma.refreshToken.create({
       data: {
-        token: refreshToken,
+        token: hashedRefreshToken,
         userId: user.id,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
       },
     });
+
+    // Log signup event
+    logger.info(`User signed up: ${user.email}`, { userId: user.id });
 
     res.status(201).json({
       success: true,
@@ -84,7 +92,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
       where: { email },
     });
 
-    if (!user) {
+    if (!user || !user.passwordHash) {
       throw new AppError('Invalid credentials', 401, 'INVALID_CREDENTIALS');
     }
 
@@ -99,14 +107,20 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     const token = generateAccessToken(user.id, user.email);
     const refreshToken = generateRefreshToken(user.id, user.email);
 
-    // Store refresh token
+    // Hash refresh token before storing (SHA-256)
+    const hashedRefreshToken = sha256Hash(refreshToken);
+
+    // Store hashed refresh token
     await prisma.refreshToken.create({
       data: {
-        token: refreshToken,
+        token: hashedRefreshToken,
         userId: user.id,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
     });
+
+    // Log login event
+    logger.info(`User logged in: ${user.email}`, { userId: user.id });
 
     res.json({
       success: true,
@@ -133,12 +147,15 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
       throw new AppError('Refresh token required', 400, 'MISSING_TOKEN');
     }
 
-    // Verify refresh token
+    // Verify refresh token JWT
     const decoded = verifyRefreshToken(refreshToken);
 
-    // Check if refresh token exists in database
+    // Hash the provided refresh token to match stored hash
+    const hashedRefreshToken = sha256Hash(refreshToken);
+
+    // Check if hashed refresh token exists in database
     const storedToken = await prisma.refreshToken.findUnique({
-      where: { token: refreshToken },
+      where: { token: hashedRefreshToken },
     });
 
     if (!storedToken || storedToken.expiresAt < new Date()) {
@@ -149,14 +166,17 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
     const newAccessToken = generateAccessToken(decoded.userId, decoded.email);
     const newRefreshToken = generateRefreshToken(decoded.userId, decoded.email);
 
+    // Hash new refresh token
+    const hashedNewRefreshToken = sha256Hash(newRefreshToken);
+
     // Delete old refresh token and create new one
     await prisma.refreshToken.delete({
-      where: { token: refreshToken },
+      where: { token: hashedRefreshToken },
     });
 
     await prisma.refreshToken.create({
       data: {
-        token: newRefreshToken,
+        token: hashedNewRefreshToken,
         userId: decoded.userId,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },

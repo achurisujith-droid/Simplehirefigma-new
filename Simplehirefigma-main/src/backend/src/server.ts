@@ -17,6 +17,7 @@ import interviewRoutes from './routes/interview.routes';
 import idVerificationRoutes from './routes/idVerification.routes';
 import referenceRoutes from './routes/reference.routes';
 import certificateRoutes from './routes/certificate.routes';
+import sessionRoutes from './modules/session/session.routes';
 
 const app = express();
 
@@ -70,6 +71,7 @@ app.use('/api/interviews', interviewRoutes);
 app.use('/api/id-verification', idVerificationRoutes);
 app.use('/api/references', referenceRoutes);
 app.use('/api/certificates', certificateRoutes);
+app.use('/api/session', sessionRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

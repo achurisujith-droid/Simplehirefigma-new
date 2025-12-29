@@ -19,7 +19,7 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
     req.user = {
       id: decoded.userId,
       email: decoded.email,
-      name: '', // Will be populated from database if needed
+      name: '',
     };
 
     next();
@@ -31,5 +31,34 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
       return next(new AppError('Invalid token', 401, 'INVALID_TOKEN'));
     }
     next(error);
+  }
+};
+
+export const optionalAuth = (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      req.user = null;
+      return next();
+    }
+
+    const token = authHeader.substring(7);
+
+    try {
+      const decoded = jwt.verify(token, config.jwt.secret) as TokenPayload;
+      req.user = {
+        id: decoded.userId,
+        email: decoded.email,
+        name: '',
+      };
+    } catch (error) {
+      req.user = null;
+    }
+
+    next();
+  } catch (error) {
+    req.user = null;
+    next();
   }
 };

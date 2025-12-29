@@ -322,7 +322,7 @@ export class DocumentVerificationService {
       const idData = await this.extractIDData(idS3Key);
 
       // Step 3: Compare faces
-      const faceMatch = await compareFaces(idS3Key, selfieS3Key);
+      const faceMatch = await this.compareFaces(idS3Key, selfieS3Key);
 
       // Calculate overall score
       const qualityScore = documentQuality.isGoodQuality ? 30 : 10;

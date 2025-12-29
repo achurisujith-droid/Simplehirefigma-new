@@ -56,6 +56,7 @@ export interface InterviewData {
 }
 
 export interface CategoryScores {
+  [key: string]: number;
   technicalAccuracy: number;
   communicationClarity: number;
   problemSolving: number;

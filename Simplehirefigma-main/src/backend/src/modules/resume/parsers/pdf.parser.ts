@@ -1,11 +1,11 @@
-import pdf from 'pdf-parse';
+import * as pdf from 'pdf-parse';
 import fs from 'fs/promises';
 import logger from '../../../config/logger';
 
 export async function extractTextFromPDF(filePath: string): Promise<string> {
   try {
     const dataBuffer = await fs.readFile(filePath);
-    const data = await pdf(dataBuffer);
+    const data = await (pdf as any)(dataBuffer);
     if (!data.text || data.text.trim().length === 0) {
       throw new Error('PDF appears to be empty or contains no extractable text');
     }

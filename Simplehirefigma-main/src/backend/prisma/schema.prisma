@@ -234,6 +234,7 @@ model AssessmentPlan {
   estimatedDuration Int?     @map("estimated_duration")
   skillBuckets      Json?    @map("skill_buckets")
   interviewPlan     Json     @map("interview_plan")
+  idCardUrl         String?  @map("id_card_url")
   status            String   @default("DRAFT")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
@@ -260,11 +261,28 @@ model Interview {
   createdAt        DateTime  @default(now()) @map("created_at")
   updatedAt        DateTime  @updatedAt @map("updated_at")
 
-  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  assessmentPlan AssessmentPlan @relation(fields: [assessmentPlanId], references: [id], onDelete: Cascade)
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assessmentPlan   AssessmentPlan    @relation(fields: [assessmentPlanId], references: [id], onDelete: Cascade)
+  proctoringEvents ProctoringEvent[]
 
   @@index([userId])
   @@index([assessmentPlanId])
   @@index([status])
   @@map("interviews")
+}
+
+model ProctoringEvent {
+  id             String   @id @default(uuid())
+  interviewId    String   @map("interview_id")
+  timestamp      DateTime @default(now())
+  eventType      String   @map("event_type") // "initial_verification", "continuous_monitor"
+  similarity     Float?
+  alertTriggered Boolean  @default(false) @map("alert_triggered")
+  violationData  Json?    @map("violation_data")
+
+  interview Interview @relation(fields: [interviewId], references: [id], onDelete: Cascade)
+
+  @@index([interviewId])
+  @@index([timestamp])
+  @@map("proctoring_events")
 }

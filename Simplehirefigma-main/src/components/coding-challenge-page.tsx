@@ -3,11 +3,13 @@ import { Code, Clock, CheckCircle2, AlertCircle, ArrowRight, ArrowLeft } from "l
 import { Button } from "./ui/button";
 
 interface CodingQuestion {
-  id: number;
+  id: string;
   title: string;
-  difficulty: "Easy" | "Medium";
+  difficulty: string;
   description: string;
-  examples: { input: string; output: string }[];
+  language?: string;
+  evaluationCriteria?: string[];
+  examples?: { input: string; output: string }[];
 }
 
 interface CodingChallengePageProps {
@@ -15,40 +17,60 @@ interface CodingChallengePageProps {
 }
 
 export function CodingChallengePage({ onComplete }: CodingChallengePageProps) {
+  const [questions, setQuestions] = useState<CodingQuestion[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [solutions, setSolutions] = useState<Record<number, string>>({
-    1: "",
-    2: "",
-  });
-  const [timeLeft, setTimeLeft] = useState(1800); // 30 minutes total
+  const [solutions, setSolutions] = useState<Record<string, string>>({});
+  const [timeLeft, setTimeLeft] = useState(2400); // 40 minutes total
 
-  const questions: CodingQuestion[] = [
-    {
-      id: 1,
-      title: "Check if a String is a Palindrome",
-      difficulty: "Easy",
-      description: "Write a function that checks if a given string is a palindrome. A palindrome is a word, phrase, or sequence that reads the same backward as forward (ignoring spaces, punctuation, and capitalization).",
-      examples: [
-        { input: "\"racecar\"", output: "true" },
-        { input: "\"hello\"", output: "false" },
-        { input: "\"A man a plan a canal Panama\"", output: "true" }
-      ]
-    },
-    {
-      id: 2,
-      title: "Find the Largest Number in an Array",
-      difficulty: "Easy",
-      description: "Write a function that takes an array of numbers and returns the largest number in the array. Handle edge cases like empty arrays.",
-      examples: [
-        { input: "[3, 7, 2, 9, 1]", output: "9" },
-        { input: "[-5, -2, -10, -1]", output: "-1" },
-        { input: "[42]", output: "42" }
-      ]
+  // Fetch coding challenges from backend
+  useEffect(() => {
+    async function loadCodingChallenges() {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error('No authentication token found');
+        }
+
+        const response = await fetch('/api/interviews/coding', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to load coding challenges');
+        }
+
+        const data = await response.json();
+        if (data.success && data.data && data.data.length > 0) {
+          setQuestions(data.data);
+          // Initialize solutions state
+          const initialSolutions: Record<string, string> = {};
+          data.data.forEach((q: CodingQuestion) => {
+            initialSolutions[q.id] = '';
+          });
+          setSolutions(initialSolutions);
+        } else {
+          throw new Error('No coding challenges received from server');
+        }
+      } catch (error) {
+        console.error('Failed to load coding challenges:', error);
+        setError(error instanceof Error ? error.message : 'Failed to load challenges');
+      } finally {
+        setIsLoading(false);
+      }
     }
-  ];
+    loadCodingChallenges();
+  }, []);
 
   const currentQuestion = questions[currentQuestionIndex];
-  const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+  const progress = questions.length > 0 ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0;
   const completedCount = Object.values(solutions).filter(s => s.trim().length > 0).length;
 
   // Countdown timer
@@ -97,10 +119,40 @@ export function CodingChallengePage({ onComplete }: CodingChallengePageProps) {
   };
 
   const getDifficultyColor = (difficulty: string) => {
-    return difficulty === "Easy" 
-      ? "bg-green-100 text-green-700 border-green-300"
-      : "bg-amber-100 text-amber-700 border-amber-300";
+    const lower = difficulty?.toLowerCase();
+    if (lower === "easy") {
+      return "bg-green-100 text-green-700 border-green-300";
+    } else if (lower === "hard") {
+      return "bg-red-100 text-red-700 border-red-300";
+    }
+    return "bg-amber-100 text-amber-700 border-amber-300";
   };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <main className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading your personalized coding challenges...</p>
+        </div>
+      </main>
+    );
+  }
+
+  // Show error state
+  if (error || questions.length === 0) {
+    return (
+      <main className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-slate-900 mb-2">Unable to Load Challenges</h2>
+          <p className="text-slate-600 mb-4">{error || 'No challenges available'}</p>
+          <Button onClick={() => window.location.reload()}>Try Again</Button>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50">
@@ -188,32 +240,34 @@ export function CodingChallengePage({ onComplete }: CodingChallengePageProps) {
               </div>
 
               {/* Examples */}
-              <div>
-                <h3 className="text-sm text-slate-900 mb-3 flex items-center gap-2">
-                  <span>📝</span>
-                  <span>Examples:</span>
-                </h3>
-                <div className="space-y-3">
-                  {currentQuestion.examples.map((example, index) => (
-                    <div key={index} className="bg-gradient-to-br from-slate-50 to-blue-50/30 rounded-xl p-4 border border-slate-200">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <span className="text-xs text-slate-500 uppercase tracking-wide">Input</span>
-                          <code className="block text-sm text-slate-900 mt-2 font-mono bg-white px-3 py-2 rounded-lg border border-slate-200">
-                            {example.input}
-                          </code>
-                        </div>
-                        <div>
-                          <span className="text-xs text-slate-500 uppercase tracking-wide">Output</span>
-                          <code className="block text-sm text-blue-600 mt-2 font-mono bg-white px-3 py-2 rounded-lg border border-blue-200">
-                            {example.output}
-                          </code>
+              {currentQuestion.examples && currentQuestion.examples.length > 0 && (
+                <div>
+                  <h3 className="text-sm text-slate-900 mb-3 flex items-center gap-2">
+                    <span>📝</span>
+                    <span>Examples:</span>
+                  </h3>
+                  <div className="space-y-3">
+                    {currentQuestion.examples.map((example, index) => (
+                      <div key={index} className="bg-gradient-to-br from-slate-50 to-blue-50/30 rounded-xl p-4 border border-slate-200">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <span className="text-xs text-slate-500 uppercase tracking-wide">Input</span>
+                            <code className="block text-sm text-slate-900 mt-2 font-mono bg-white px-3 py-2 rounded-lg border border-slate-200">
+                              {example.input}
+                            </code>
+                          </div>
+                          <div>
+                            <span className="text-xs text-slate-500 uppercase tracking-wide">Output</span>
+                            <code className="block text-sm text-blue-600 mt-2 font-mono bg-white px-3 py-2 rounded-lg border border-blue-200">
+                              {example.output}
+                            </code>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Tips Card */}

@@ -6,6 +6,10 @@ import { Response, NextFunction } from 'express';
 import { uploadFile } from '../utils/fileUpload';
 import config from '../config';
 import { AppError } from '../utils/errors';
+import prisma from '../config/database';
+import { mcqGeneratorService } from '../modules/assessment/mcq-generator.service';
+import { codeGeneratorService } from '../modules/assessment/code-generator.service';
+import { componentEvaluatorService } from '../modules/assessment/component-evaluator.service';
 
 const router = Router();
 const upload = multer({ 
@@ -87,23 +91,70 @@ router.post('/voice/submit', upload.single('audio'), async (req: AuthRequest, re
   }
 });
 
-// Get MCQ questions
+// Get MCQ questions - DYNAMIC GENERATION
 router.get('/mcq', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const { role } = req.query;
+    // Get or create assessment plan for this user
+    const assessmentPlan = await prisma.assessmentPlan.findFirst({
+      where: { userId: req.user!.id, status: 'DRAFT' },
+      orderBy: { createdAt: 'desc' }
+    });
 
-    // In production, fetch from database
+    if (!assessmentPlan || !assessmentPlan.interviewPlan) {
+      throw new AppError('No assessment plan found. Please upload your resume first.', 404, 'NOT_FOUND');
+    }
+
+    const plan = assessmentPlan.interviewPlan as any;
+    
+    // Check if MCQ questions already exist
+    if (plan.mcqQuestions && Array.isArray(plan.mcqQuestions) && plan.mcqQuestions.length > 0) {
+      // Return existing questions without correctAnswerIndex
+      return res.json({
+        success: true,
+        data: plan.mcqQuestions.map((q: any) => ({
+          id: q.id,
+          question: q.questionText,
+          options: q.options,
+          category: q.skillCategory,
+          difficulty: q.difficulty,
+        }))
+      });
+    }
+
+    const classification = plan.classification;
+    if (!classification) {
+      throw new AppError('Assessment plan is incomplete', 400, 'VALIDATION_ERROR');
+    }
+
+    // Generate MCQ questions using the MCQ generator service
+    const mcqQuestions = await mcqGeneratorService.generateMCQQuestions(
+      classification,
+      plan.questionCounts?.mcq || 12,
+      plan.difficulty,
+      plan.topics || []
+    );
+
+    // Store questions in assessment plan (with correct answers)
+    await prisma.assessmentPlan.update({
+      where: { id: assessmentPlan.id },
+      data: {
+        interviewPlan: {
+          ...plan,
+          mcqQuestions
+        }
+      }
+    });
+
+    // Return questions without correct answers
     res.json({
       success: true,
-      data: [
-        {
-          id: 'mcq_1',
-          question: 'What is React?',
-          options: ['A library', 'A framework', 'A language', 'An IDE'],
-          category: 'react',
-          difficulty: 'easy',
-        },
-      ],
+      data: mcqQuestions.map(q => ({
+        id: q.id,
+        question: q.questionText,
+        options: q.options,
+        category: q.skillCategory,
+        difficulty: q.difficulty,
+      }))
     });
   } catch (error) {
     next(error);
@@ -129,19 +180,74 @@ router.post('/mcq/submit', async (req: AuthRequest, res: Response, next: NextFun
   }
 });
 
-// Get coding challenge
+// Get coding challenge - DYNAMIC GENERATION
 router.get('/coding', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    const assessmentPlan = await prisma.assessmentPlan.findFirst({
+      where: { userId: req.user!.id, status: 'DRAFT' },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (!assessmentPlan || !assessmentPlan.interviewPlan) {
+      throw new AppError('No assessment plan found. Please upload your resume first.', 404, 'NOT_FOUND');
+    }
+
+    const plan = assessmentPlan.interviewPlan as any;
+    
+    // Check if coding challenges already exist
+    if (plan.codingChallenges && Array.isArray(plan.codingChallenges) && plan.codingChallenges.length > 0) {
+      // Return existing challenges
+      return res.json({
+        success: true,
+        data: plan.codingChallenges.map((c: any) => ({
+          id: c.id,
+          title: c.questionText ? c.questionText.split('\n')[0].substring(0, 100) : 'Coding Challenge',
+          description: c.questionText,
+          difficulty: c.difficulty,
+          evaluationCriteria: c.evaluationCriteria,
+          language: c.language,
+          starterCode: c.starterCode || '',
+          testCases: c.testCases || []
+        }))
+      });
+    }
+
+    const classification = plan.classification;
+    if (!classification) {
+      throw new AppError('Assessment plan is incomplete', 400, 'VALIDATION_ERROR');
+    }
+
+    // Generate coding challenges
+    const codingChallenges = await codeGeneratorService.generateCodingChallenges(
+      classification,
+      plan.questionCounts?.code || 2,
+      plan.taskStyle || 'implement_function',
+      classification.primaryLanguages?.[0] || 'JavaScript'
+    );
+
+    // Store challenges
+    await prisma.assessmentPlan.update({
+      where: { id: assessmentPlan.id },
+      data: {
+        interviewPlan: {
+          ...plan,
+          codingChallenges
+        }
+      }
+    });
+
     res.json({
       success: true,
-      data: {
-        id: 'coding_1',
-        title: 'Create a Todo Component',
-        description: 'Implement a functional React component...',
-        difficulty: 'medium',
-        starterCode: 'import React from "react";\n\nfunction Todo() {\n  // Your code here\n}\n\nexport default Todo;',
-        testCases: [],
-      },
+      data: codingChallenges.map(c => ({
+        id: c.id,
+        title: c.questionText ? c.questionText.split('\n')[0].substring(0, 100) : 'Coding Challenge',
+        description: c.questionText,
+        difficulty: c.difficulty,
+        evaluationCriteria: c.evaluationCriteria,
+        language: c.language,
+        starterCode: c.starterCode || '',
+        testCases: c.testCases || []
+      }))
     });
   } catch (error) {
     next(error);
@@ -190,6 +296,156 @@ router.post('/certificate', async (req: AuthRequest, res: Response, next: NextFu
         certificateUrl: `${config.appUrl}/certificate/${certificateNumber}`,
         certificateNumber,
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/interviews/mcq/evaluate - Evaluate MCQ answer
+router.post('/mcq/evaluate', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { questionId, selectedOptionIndex } = req.body;
+    
+    if (typeof selectedOptionIndex !== 'number') {
+      throw new AppError('selectedOptionIndex is required', 400, 'VALIDATION_ERROR');
+    }
+    
+    // Get stored question with correct answer
+    const assessmentPlan = await prisma.assessmentPlan.findFirst({
+      where: { userId: req.user!.id },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (!assessmentPlan || !assessmentPlan.interviewPlan) {
+      throw new AppError('Assessment plan not found', 404, 'NOT_FOUND');
+    }
+
+    const mcqQuestions = (assessmentPlan.interviewPlan as any)?.mcqQuestions || [];
+    const question = mcqQuestions.find((q: any) => q.id === questionId);
+
+    if (!question) {
+      throw new AppError('Question not found', 404, 'NOT_FOUND');
+    }
+
+    // Evaluate using component evaluator
+    const evaluation = await componentEvaluatorService.evaluateMCQAnswer(
+      question.questionText,
+      question.options,
+      question.correctAnswerIndex,
+      selectedOptionIndex
+    );
+
+    res.json({
+      success: true,
+      data: {
+        isCorrect: evaluation.isCorrect,
+        feedback: evaluation.feedback,
+        score: evaluation.rawScore
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /api/interviews/coding/evaluate - Evaluate coding submission
+router.post('/coding/evaluate', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { challengeId, code, language } = req.body;
+    
+    if (!code || !language) {
+      throw new AppError('code and language are required', 400, 'VALIDATION_ERROR');
+    }
+    
+    // Get stored challenge
+    const assessmentPlan = await prisma.assessmentPlan.findFirst({
+      where: { userId: req.user!.id },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (!assessmentPlan || !assessmentPlan.interviewPlan) {
+      throw new AppError('Assessment plan not found', 404, 'NOT_FOUND');
+    }
+
+    const codingChallenges = (assessmentPlan.interviewPlan as any)?.codingChallenges || [];
+    const challenge = codingChallenges.find((c: any) => c.id === challengeId);
+
+    if (!challenge) {
+      throw new AppError('Challenge not found', 404, 'NOT_FOUND');
+    }
+
+    // Evaluate using LLM
+    const evaluation = await componentEvaluatorService.evaluateCodeAnswer(
+      challenge.questionText,
+      language,
+      challenge.evaluationCriteria,
+      code
+    );
+
+    const score = componentEvaluatorService.calculateCodeScore(evaluation);
+
+    res.json({
+      success: true,
+      data: {
+        score,
+        dimensions: evaluation.dimensions,
+        feedback: evaluation.feedback,
+        strengths: evaluation.strengths,
+        improvements: evaluation.improvements
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/interviews/assessment-plan/:sessionId - Get assessment plan details
+router.get('/assessment-plan/:sessionId', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const { sessionId } = req.params;
+    
+    const assessmentPlan = await prisma.assessmentPlan.findUnique({
+      where: { id: sessionId }
+    });
+
+    if (!assessmentPlan) {
+      throw new AppError('Assessment plan not found', 404, 'NOT_FOUND');
+    }
+
+    // Verify ownership
+    if (assessmentPlan.userId !== req.user!.id) {
+      throw new AppError('Unauthorized', 403, 'FORBIDDEN');
+    }
+
+    const plan = assessmentPlan.interviewPlan as any;
+
+    res.json({
+      success: true,
+      data: {
+        sessionId: assessmentPlan.id,
+        plan: {
+          components: assessmentPlan.components,
+          questionCounts: assessmentPlan.questionCounts,
+          difficulty: assessmentPlan.difficulty,
+          duration: assessmentPlan.estimatedDuration
+        },
+        voiceQuestions: plan?.voiceQuestions || [],
+        mcqQuestions: plan?.mcqQuestions?.map((q: any) => ({
+          id: q.id,
+          text: q.questionText,
+          topic: q.skillCategory,
+          difficulty: q.difficulty
+        })) || [],
+        codingChallenges: plan?.codingChallenges?.map((c: any) => ({
+          id: c.id,
+          title: c.questionText ? c.questionText.split('\n')[0].substring(0, 100) : 'Coding Challenge',
+          description: c.questionText,
+          difficulty: c.difficulty,
+          language: c.language
+        })) || [],
+        resumeUrl: assessmentPlan.resumeText ? 'resume-uploaded' : null
+      }
     });
   } catch (error) {
     next(error);

@@ -10,6 +10,54 @@ import prisma from '../config/database';
 import { mcqGeneratorService } from '../modules/assessment/mcq-generator.service';
 import { codeGeneratorService } from '../modules/assessment/code-generator.service';
 import { componentEvaluatorService } from '../modules/assessment/component-evaluator.service';
+import { interviewEvaluatorService } from '../modules/assessment/interview-evaluator.service';
+
+// Type for stored evaluation data
+interface StoredEvaluation {
+  overallScore: number;
+  categoryScores: {
+    technicalAccuracy: number;
+    communicationClarity: number;
+    problemSolving: number;
+    experienceAlignment: number;
+  };
+  strengths: string[];
+  areasForImprovement: string[];
+  summary: string;
+  recommendation: 'strong_hire' | 'hire' | 'maybe_hire' | 'no_hire';
+  confidenceLevel: 'high' | 'medium' | 'low';
+  evaluationAgreement: string;
+  selectedProvider: string;
+  arbiterSkipped: boolean;
+  providerResults?: any[];
+}
+
+// Type for interview plan data
+interface InterviewPlanData {
+  voiceAnswers?: Array<{
+    questionId?: string;
+    id?: string;
+    question: string;
+    transcript?: string;
+    answer?: string;
+  }>;
+  mcqAnswers?: Array<{
+    questionId?: string;
+    id?: string;
+    question: string;
+    selectedOption: string;
+    correctOption: string;
+    isCorrect: boolean;
+  }>;
+  codeAnswers?: Array<{
+    questionId?: string;
+    id?: string;
+    question: string;
+    language: string;
+    submission: string;
+  }>;
+  [key: string]: any;
+}
 
 const router = Router();
 const upload = multer({ 
@@ -298,7 +346,7 @@ router.get('/evaluation', async (req: AuthRequest, res: Response, next: NextFunc
 
     // If evaluation already exists, return it
     if (interview && interview.evaluation) {
-      const evaluation = interview.evaluation as any;
+      const evaluation = interview.evaluation as unknown as StoredEvaluation;
       return res.json({
         success: true,
         data: {
@@ -318,10 +366,8 @@ router.get('/evaluation', async (req: AuthRequest, res: Response, next: NextFunc
     }
 
     // Generate evaluation using multi-LLM arbiter
-    const { interviewEvaluatorService } = await import('../modules/assessment/interview-evaluator.service');
-    
     // Gather interview data from interviewPlan
-    const interviewPlan = assessmentPlan.interviewPlan as any;
+    const interviewPlan = assessmentPlan.interviewPlan as unknown as InterviewPlanData;
     const voiceAnswers = interviewPlan.voiceAnswers || [];
     const mcqAnswers = interviewPlan.mcqAnswers || [];
     const codeAnswers = interviewPlan.codeAnswers || [];

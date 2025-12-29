@@ -25,15 +25,24 @@ const anthropic = new Anthropic({
   apiKey: config.anthropic.apiKey,
 });
 
-// Load LLM configuration
+// Load LLM configuration (cached at module load time)
 let llmConfig: any;
-try {
-  const configPath = path.join(__dirname, '../../../config/llm_config.json');
-  llmConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-} catch (error) {
-  logger.error('Failed to load LLM config:', error);
-  throw new Error('LLM configuration file not found');
+function loadLLMConfig() {
+  if (!llmConfig) {
+    try {
+      const configPath = path.join(__dirname, '../../../config/llm_config.json');
+      llmConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      logger.info('LLM configuration loaded successfully');
+    } catch (error) {
+      logger.error('Failed to load LLM config:', error);
+      throw new Error('LLM configuration file not found');
+    }
+  }
+  return llmConfig;
 }
+
+// Initialize config on module load
+llmConfig = loadLLMConfig();
 
 // ============================================================================
 // TypeScript Interfaces
@@ -469,7 +478,7 @@ export async function evaluateWithMultiLLM(
       return runArbiter([evaluation], interviewData);
     }
 
-    // Run evaluations in parallel
+    // Run evaluations in parallel with graceful error handling
     const evaluationPromises: Promise<LLMEvaluationResult>[] = [];
     
     // Always run GPT-4o
@@ -480,8 +489,26 @@ export async function evaluateWithMultiLLM(
       evaluationPromises.push(evaluateWithClaudeOpus(interviewData));
     }
 
-    // Wait for all evaluations to complete
-    const evaluations = await Promise.all(evaluationPromises);
+    // Wait for all evaluations to complete, handling partial failures
+    const results = await Promise.allSettled(evaluationPromises);
+    
+    // Filter successful evaluations
+    const evaluations = results
+      .filter((result): result is PromiseFulfilledResult<LLMEvaluationResult> => 
+        result.status === 'fulfilled'
+      )
+      .map(result => result.value);
+    
+    // Log any failures
+    const failures = results.filter(result => result.status === 'rejected');
+    if (failures.length > 0) {
+      logger.warn(`${failures.length} evaluation(s) failed:`, failures);
+    }
+    
+    // Ensure we have at least one successful evaluation
+    if (evaluations.length === 0) {
+      throw new Error('All LLM evaluations failed');
+    }
     
     logger.info(`Completed ${evaluations.length} evaluations, running arbiter`);
 

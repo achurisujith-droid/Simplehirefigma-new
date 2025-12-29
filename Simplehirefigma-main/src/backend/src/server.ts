@@ -7,6 +7,7 @@ import rateLimit from 'express-rate-limit';
 import config from './config';
 import logger from './config/logger';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
+import { authenticate } from './middleware/auth';
 
 // Import routes
 import authRoutes from './routes/auth.routes';
@@ -18,6 +19,8 @@ import idVerificationRoutes from './routes/idVerification.routes';
 import referenceRoutes from './routes/reference.routes';
 import certificateRoutes from './routes/certificate.routes';
 import sessionRoutes from './modules/session/session.routes';
+import assessmentRoutes from './modules/assessment/assessment.routes';
+import proctoringRoutes from './modules/proctoring/proctoring.routes';
 
 const app = express();
 
@@ -68,10 +71,12 @@ app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/interviews', interviewRoutes);
+app.use('/api/interviews', authenticate, assessmentRoutes);
 app.use('/api/id-verification', idVerificationRoutes);
 app.use('/api/references', referenceRoutes);
 app.use('/api/certificates', certificateRoutes);
 app.use('/api/session', sessionRoutes);
+app.use('/api/proctoring', authenticate, proctoringRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

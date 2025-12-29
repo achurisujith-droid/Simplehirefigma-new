@@ -36,7 +36,7 @@ interface Config {
     clientId: string;
     clientSecret: string;
   };
-  openai?: {
+  openai: {
     apiKey: string;
   };
   rateLimit: {
@@ -87,7 +87,7 @@ export const config: Config = {
     clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
   },
   openai: {
-    apiKey: process.env.OPENAI_API_KEY,
+    apiKey: process.env.OPENAI_API_KEY || '',
   },
   rateLimit: {
     windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '900000', 10),

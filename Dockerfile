@@ -1,6 +1,9 @@
 # Multi-stage build for Node.js backend with Prisma
 FROM node:20-alpine AS base
 
+# Upgrade npm to latest version
+RUN npm install -g npm@11.7.0
+
 # Install dependencies needed for Prisma and native modules
 RUN apk add --no-cache libc6-compat openssl
 

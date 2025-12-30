@@ -7,7 +7,7 @@
 **A comprehensive platform for candidate verification including skill assessment, ID verification, and reference checks**
 
 [![Node.js](https://img.shields.io/badge/Node.js-20+-green.svg)](https://nodejs.org/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.3+-blue.svg)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-blue.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18.3-blue.svg)](https://reactjs.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-blue.svg)](https://www.postgresql.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -141,9 +141,9 @@ Simplehire follows a modern **monorepo architecture** with separate frontend and
 
 ### Backend
 - **Runtime**: Node.js 20+
-- **Framework**: Express 4.18
-- **Language**: TypeScript 5.3
-- **ORM**: Prisma 5.8
+- **Framework**: Express 4.22
+- **Language**: TypeScript 5.7
+- **ORM**: Prisma 6.19
 - **Authentication**: JWT (jsonwebtoken)
 - **Password Hashing**: bcrypt
 - **File Upload**: Multer + AWS SDK
@@ -176,7 +176,7 @@ Simplehire follows a modern **monorepo architecture** with separate frontend and
 Before setting up Simplehire, ensure you have the following installed:
 
 - **Node.js**: 20.x or higher ([Download](https://nodejs.org/))
-- **npm**: 9.x or higher (comes with Node.js)
+- **npm**: 10.8.2 or higher (comes with Node.js)
 - **PostgreSQL**: 14.x or higher ([Download](https://www.postgresql.org/download/))
 - **Git**: For version control ([Download](https://git-scm.com/))
 
@@ -391,8 +391,11 @@ Railway provides the easiest way to deploy Simplehire with zero-config PostgreSQ
 > **🎉 Recent Improvements**: This repository has been updated with enhanced deployment support:
 > - ✅ Prisma migrations included for automatic database setup
 > - ✅ Environment variable validation with clear error messages
-> - ✅ Enhanced health checks with service status monitoring
-> - ✅ Updated dependencies for better security and compatibility
+> - ✅ Enhanced health checks with comprehensive service status monitoring
+> - ✅ Database connectivity with retry logic and detailed logging
+> - ✅ Console logging enabled for production environments
+> - ✅ Startup readiness checks before accepting requests
+> - ✅ Updated dependencies (Prisma 6.19.1, npm 11.7.0 in Docker)
 > - ✅ Comprehensive deployment documentation
 > 
 > See [FIX_SUMMARY.md](FIX_SUMMARY.md) for details on recent improvements.

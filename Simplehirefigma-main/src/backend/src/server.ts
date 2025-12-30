@@ -8,6 +8,7 @@ import config from './config';
 import logger from './config/logger';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { authenticate } from './middleware/auth';
+import { validateEnvironmentOrExit } from './utils/validateEnv';
 
 // Import routes
 import authRoutes from './routes/auth.routes';
@@ -21,6 +22,9 @@ import certificateRoutes from './routes/certificate.routes';
 import sessionRoutes from './modules/session/session.routes';
 import assessmentRoutes from './modules/assessment/assessment.routes';
 import proctoringRoutes from './modules/proctoring/proctoring.routes';
+
+// Validate environment variables before starting the app
+validateEnvironmentOrExit();
 
 const app = express();
 

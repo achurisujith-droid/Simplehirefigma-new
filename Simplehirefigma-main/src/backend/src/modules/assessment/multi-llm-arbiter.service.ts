@@ -27,15 +27,84 @@ const anthropic = new Anthropic({
 
 // Load LLM configuration (cached at module load time)
 let llmConfig: any;
+
+// Default LLM configuration (fallback)
+const DEFAULT_LLM_CONFIG = {
+  version: '1.0.0',
+  providers: {
+    openai: {
+      enabled: true,
+      models: {
+        'gpt-4o': {
+          id: 'gpt-4o',
+          name: 'GPT-4o',
+          maxTokens: 4096,
+          temperature: 0.3,
+        },
+      },
+    },
+    anthropic: {
+      enabled: true,
+      models: {
+        'claude-opus-4-5-20251101': {
+          id: 'claude-opus-4-5-20251101',
+          name: 'Claude Opus 4.5',
+          maxTokens: 4096,
+          temperature: 0.3,
+        },
+      },
+    },
+  },
+  evaluation: {
+    parallelEvaluation: true,
+    arbiterEnabled: true,
+    arbiterProvider: 'openai',
+    arbiterModel: 'gpt-4o',
+    evaluationModels: [
+      { provider: 'openai', model: 'gpt-4o' },
+      { provider: 'anthropic', model: 'claude-opus-4-5-20251101' },
+    ],
+  },
+  prompts: {
+    evaluationSystem: 'You are an expert interviewer. Evaluate the candidate\'s interview performance based on the provided transcript and resume. Provide detailed scoring and feedback.',
+    arbiterSystem: 'You are a senior hiring manager reviewing evaluations from multiple AI systems. Analyze both evaluations, select the most accurate and fair assessment, provide your rationale, and synthesize the best insights from both.',
+  },
+  scoringRubric: {
+    categories: {
+      technicalAccuracy: {
+        weight: 0.35,
+        description: 'Correctness and depth of technical knowledge',
+        scale: { min: 0, max: 10 },
+      },
+      communicationClarity: {
+        weight: 0.20,
+        description: 'Clarity and articulation of responses',
+        scale: { min: 0, max: 10 },
+      },
+      problemSolving: {
+        weight: 0.25,
+        description: 'Analytical thinking and approach to problems',
+        scale: { min: 0, max: 10 },
+      },
+      experienceAlignment: {
+        weight: 0.20,
+        description: 'Alignment between resume and demonstrated knowledge',
+        scale: { min: 0, max: 10 },
+      },
+    },
+  },
+};
+
 function loadLLMConfig() {
   if (!llmConfig) {
     try {
       const configPath = path.join(__dirname, '../../../config/llm_config.json');
       llmConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-      logger.info('LLM configuration loaded successfully');
+      logger.info('LLM configuration loaded successfully from file');
     } catch (error) {
-      logger.error('Failed to load LLM config:', error);
-      throw new Error('LLM configuration file not found');
+      logger.warn('Failed to load LLM config from file, using default configuration:', error);
+      llmConfig = DEFAULT_LLM_CONFIG;
+      logger.info('LLM configuration loaded from defaults');
     }
   }
   return llmConfig;

@@ -10,5 +10,127 @@
     "restartPolicyMaxRetries": 10,
     "healthcheckPath": "/health",
     "healthcheckTimeout": 100
+  },
+  "environments": {
+    "production": {
+      "variables": {
+        "NODE_ENV": {
+          "value": "production",
+          "description": "Application environment"
+        },
+        "JWT_SECRET": {
+          "description": "Secret key for JWT token signing (generate with: openssl rand -hex 32)",
+          "required": true
+        },
+        "JWT_REFRESH_SECRET": {
+          "description": "Secret key for refresh token signing (generate with: openssl rand -hex 32)",
+          "required": true
+        },
+        "JWT_EXPIRES_IN": {
+          "value": "15m",
+          "description": "JWT access token expiration time"
+        },
+        "REFRESH_TOKEN_EXPIRES_IN": {
+          "value": "7d",
+          "description": "Refresh token expiration time"
+        },
+        "FRONTEND_URL": {
+          "description": "Frontend application URL (e.g., https://your-app.com)",
+          "required": true
+        },
+        "APP_URL": {
+          "description": "Backend API URL (automatically set by Railway)"
+        },
+        "PORT": {
+          "value": "3000",
+          "description": "Server port"
+        },
+        "BCRYPT_ROUNDS": {
+          "value": "12",
+          "description": "Number of bcrypt hashing rounds"
+        },
+        "OPENAI_API_KEY": {
+          "description": "OpenAI API key for AI-powered features (optional but recommended)"
+        },
+        "ANTHROPIC_API_KEY": {
+          "description": "Anthropic API key for multi-LLM evaluation (optional)"
+        },
+        "LLM_PROVIDERS": {
+          "value": "gpt-4o,claude-opus-4-5-20251101",
+          "description": "Comma-separated list of LLM providers to use"
+        },
+        "ENABLE_MULTI_LLM_ARBITER": {
+          "value": "true",
+          "description": "Enable multi-LLM evaluation with arbiter"
+        },
+        "AWS_ACCESS_KEY_ID": {
+          "description": "AWS access key for S3 file uploads (optional)"
+        },
+        "AWS_SECRET_ACCESS_KEY": {
+          "description": "AWS secret key for S3 file uploads (optional)"
+        },
+        "AWS_REGION": {
+          "value": "us-east-1",
+          "description": "AWS region for S3 bucket"
+        },
+        "AWS_S3_BUCKET": {
+          "description": "AWS S3 bucket name for file storage (optional)"
+        },
+        "STRIPE_SECRET_KEY": {
+          "description": "Stripe secret key for payment processing (optional)"
+        },
+        "STRIPE_PUBLISHABLE_KEY": {
+          "description": "Stripe publishable key (optional)"
+        },
+        "STRIPE_WEBHOOK_SECRET": {
+          "description": "Stripe webhook secret for event verification (optional)"
+        },
+        "SENDGRID_API_KEY": {
+          "description": "SendGrid API key for email notifications (optional)"
+        },
+        "EMAIL_FROM": {
+          "value": "noreply@simplehire.ai",
+          "description": "Email sender address"
+        },
+        "EMAIL_FROM_NAME": {
+          "value": "Simplehire",
+          "description": "Email sender name"
+        },
+        "GOOGLE_CLIENT_ID": {
+          "description": "Google OAuth client ID (optional)"
+        },
+        "GOOGLE_CLIENT_SECRET": {
+          "description": "Google OAuth client secret (optional)"
+        },
+        "RATE_LIMIT_WINDOW_MS": {
+          "value": "900000",
+          "description": "Rate limit window in milliseconds (15 minutes)"
+        },
+        "RATE_LIMIT_MAX_REQUESTS": {
+          "value": "100",
+          "description": "Maximum requests per window"
+        },
+        "LOGIN_RATE_LIMIT_MAX": {
+          "value": "5",
+          "description": "Maximum login attempts per window"
+        },
+        "MAX_FILE_SIZE": {
+          "value": "16777216",
+          "description": "Maximum file upload size in bytes (16MB)"
+        },
+        "MAX_AUDIO_SIZE": {
+          "value": "52428800",
+          "description": "Maximum audio file size in bytes (50MB)"
+        },
+        "SESSION_MAX_AGE_MS": {
+          "value": "3600000",
+          "description": "Session maximum age in milliseconds (1 hour)"
+        },
+        "LOG_LEVEL": {
+          "value": "info",
+          "description": "Logging level (debug, info, warn, error)"
+        }
+      }
+    }
   }
 }

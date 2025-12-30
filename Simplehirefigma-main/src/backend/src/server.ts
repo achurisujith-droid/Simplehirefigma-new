@@ -22,7 +22,7 @@ import referenceRoutes from './routes/reference.routes';
 import certificateRoutes from './routes/certificate.routes';
 import sessionRoutes from './modules/session/session.routes';
 import assessmentRoutes from './modules/assessment/assessment.routes';
-// import proctoringRoutes from './modules/proctoring/proctoring.routes'; // DISABLED: causes class extension error
+import proctoringRoutes from './modules/proctoring/proctoring.routes';
 
 // Validate environment variables before starting the app
 validateEnvironmentOrExit();
@@ -121,7 +121,7 @@ app.use('/api/id-verification', idVerificationRoutes);
 app.use('/api/references', referenceRoutes);
 app.use('/api/certificates', certificateRoutes);
 app.use('/api/session', sessionRoutes);
-// app.use('/api/proctoring', authenticate, proctoringRoutes); // DISABLED: causes class extension error
+app.use('/api/proctoring', authenticate, proctoringRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

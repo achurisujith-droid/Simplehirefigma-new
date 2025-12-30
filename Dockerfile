@@ -19,6 +19,7 @@ RUN rm -rf node_modules package-lock.json dist .npm .cache && \
     npm cache verify
 
 # Install root dependencies
+# Cache bust: Dec 30 2025 1520
 RUN npm ci
 
 # Install backend dependencies

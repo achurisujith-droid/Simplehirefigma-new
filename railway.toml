@@ -4,8 +4,7 @@
 # but is not used by Railway unless explicitly configured
 
 [build]
-builder = "NIXPACKS"
-buildCommand = "npm ci && rm -rf node_modules dist .npm .cache && npm cache clean --force && npm run railway:build"
+builder = "dockerfile"
 
 [deploy]
 healthcheckPath = "/health"

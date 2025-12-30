@@ -5,6 +5,7 @@
 
 [build]
 builder = "dockerfile"
+buildCommand = "npm install && npm run railway:build"
 
 [deploy]
 healthcheckPath = "/health"

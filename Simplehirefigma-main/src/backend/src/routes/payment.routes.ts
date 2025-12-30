@@ -8,7 +8,7 @@ import config from '../config';
 import prisma from '../config/database';
 
 const router = Router();
-const stripe = new Stripe(config.stripe.secretKey, { apiVersion: '2023-10-16' });
+const stripe = new Stripe(config.stripe.secretKey, { apiVersion: '2025-02-24.acacia' });
 
 // All routes require authentication
 router.use(authenticate);

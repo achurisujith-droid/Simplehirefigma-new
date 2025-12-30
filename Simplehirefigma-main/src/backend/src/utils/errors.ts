@@ -43,15 +43,9 @@ export class AppError extends BaseError {
     // Capture stack trace with multiple fallbacks
     if (typeof Error.captureStackTrace === 'function') {
       Error.captureStackTrace(this, this.constructor);
-    } else if (typeof (BaseError as any).captureStackTrace === 'function') {
-      (BaseError as any).captureStackTrace(this, this.constructor);
     } else {
-      // Manual stack trace creation as last resort
-      try {
-        throw new Error(message);
-      } catch (e: any) {
-        this.stack = e.stack;
-      }
+      // Manual stack trace creation as fallback
+      this.stack = (new Error(message)).stack;
     }
   }
 

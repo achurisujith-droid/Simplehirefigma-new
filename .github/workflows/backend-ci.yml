@@ -12,9 +12,15 @@ on:
       - 'Simplehirefigma-main/src/backend/**'
       - '.github/workflows/backend-ci.yml'
 
+permissions:
+  contents: read
+
 jobs:
   lint-and-test:
     runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
     
     # PostgreSQL service for testing
     services:
@@ -87,6 +93,9 @@ jobs:
 
   dependency-check:
     runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
     
     defaults:
       run:

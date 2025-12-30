@@ -1,4 +1,5 @@
 import { Router, Request } from 'express';
+import rateLimit from 'express-rate-limit';
 import { authenticate } from '../middleware/auth';
 import { AuthRequest } from '../types';
 import { Response, NextFunction } from 'express';
@@ -6,6 +7,19 @@ import prisma from '../config/database';
 import { AppError } from '../utils/errors';
 
 const router = Router();
+
+// Rate limiter for public certificate endpoints
+const publicCertificateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: {
+    success: false,
+    error: 'Too many certificate verification requests, please try again later',
+    code: 'RATE_LIMIT_EXCEEDED',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 // Get all certificates (authenticated)
 router.get('/', authenticate, async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -51,9 +65,10 @@ router.get(
   }
 );
 
-// Get public certificate (no auth required)
+// Get public certificate (no auth required, rate limited)
 router.get(
   '/public/:certificateNumber',
+  publicCertificateLimiter,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const certificate = await prisma.certificate.findUnique({
@@ -88,9 +103,10 @@ router.get(
   }
 );
 
-// Verify certificate (public)
+// Verify certificate (public, rate limited)
 router.get(
   '/verify/:certificateNumber',
+  publicCertificateLimiter,
   async (req: Request, res: Response, next: NextFunction) => {
     try {
       const certificate = await prisma.certificate.findUnique({

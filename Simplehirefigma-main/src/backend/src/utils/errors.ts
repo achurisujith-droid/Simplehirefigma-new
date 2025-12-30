@@ -5,12 +5,14 @@ export class AppError {
   public details?: any;
   public message: string;
   public name: string = 'AppError';
+    public stack?: string;
 
   constructor(message: string, statusCode: number = 500, code: string = 'ERROR', details?: any) {
     this.message = message;
     this.statusCode = statusCode;
     this.code = code;
     this.details = details;
+        this.stack = new Error().stack;
   }
 
   toJSON() {
@@ -20,6 +22,7 @@ export class AppError {
       statusCode: this.statusCode,
       code: this.code,
       details: this.details,
+            stack: this.stack,
     };
   }
 

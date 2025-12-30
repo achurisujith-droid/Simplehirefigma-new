@@ -15,6 +15,7 @@ COPY . .
 # Generate Prisma Client
 RUN npx prisma generate
 
+# Force rebuild - TypeScript Error class inheritance fix applied 2025-12-30T06:38
 # Build TypeScript
 RUN npm run build
 

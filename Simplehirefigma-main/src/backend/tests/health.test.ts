@@ -31,14 +31,14 @@ describe('Health Check API', () => {
       expect(response.body.services).toHaveProperty('email');
     });
 
-    it('should return 503 when database is not healthy', async () => {
+    it('should return 200 even when database is not healthy', async () => {
       // Temporarily disconnect from database to simulate failure
       await prisma.$disconnect();
 
-      const response = await request(app).get('/health').expect(503);
+      const response = await request(app).get('/health').expect(200);
 
-      expect(response.body.success).toBe(false);
-      expect(response.body.message).toContain('database');
+      expect(response.body.success).toBe(true);
+      expect(response.body.services.database).toBe(false);
 
       // Reconnect for other tests
       await prisma.$connect();

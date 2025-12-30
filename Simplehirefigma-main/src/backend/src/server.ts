@@ -61,6 +61,9 @@ const limiter = rateLimit({
 
 app.use('/api/', limiter);
 
+// Health check configuration
+const HEALTH_CHECK_DB_TIMEOUT_MS = 2000; // Timeout for database health check
+
 // Lightweight health check endpoint - always returns 200 during startup
 app.get('/health', async (req, res) => {
   try {
@@ -84,7 +87,7 @@ app.get('/health', async (req, res) => {
     try {
       const dbHealthy = await Promise.race([
         checkDatabaseHealth(),
-        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 2000))
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), HEALTH_CHECK_DB_TIMEOUT_MS))
       ]);
       health.services.database = dbHealthy;
     } catch (error) {
@@ -96,9 +99,9 @@ app.get('/health', async (req, res) => {
     res.json(health);
   } catch (error) {
     logger.error('Health check error:', error);
-    // Still return 200 with error info
+    // Still return 200 with error info but mark success as false
     res.status(200).json({
-      success: true,
+      success: false,
       message: 'Service starting',
       timestamp: new Date().toISOString(),
       error: error instanceof Error ? error.message : 'Unknown error',

@@ -5,7 +5,7 @@
 
 [build]
 builder = "NIXPACKS"
-buildCommand = "rm -rf node_modules dist .npm .cache && npm cache clean --force && npm run railway:build"
+buildCommand = "npm ci && rm -rf node_modules dist .npm .cache && npm cache clean --force && npm run railway:build"
 
 [deploy]
 healthcheckPath = "/health"

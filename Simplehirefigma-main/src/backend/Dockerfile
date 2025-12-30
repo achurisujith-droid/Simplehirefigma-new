@@ -26,7 +26,7 @@ RUN npm run build
 # Verify build output exists and show structure
 RUN ls -la dist/ && \
     echo "Verifying errors.js exists:" && \
-    ls -la dist/utils/errors.js || echo "ERROR: errors.js not found!"
+    test -f dist/utils/errors.js && echo "✓ errors.js found" || (echo "ERROR: errors.js not found!" && exit 1)
 
 # Production stage
 FROM node:18-alpine

@@ -1,4 +1,3 @@
-import { fileTypeFromFile } from 'file-type';
 import fs from 'fs/promises';
 import logger from '../../../config/logger';
 
@@ -18,7 +17,16 @@ export async function verifyFileSignature(
     await fileHandle.read(buffer, 0, 4, 0);
     await fileHandle.close();
 
-    const detectedType = await fileTypeFromFile(filePath);
+    // Dynamic import for ESM module
+    let detectedType = null;
+    try {
+      const { fileTypeFromFile } = await import('file-type');
+      detectedType = await fileTypeFromFile(filePath);
+    } catch (error) {
+      // Fallback if file-type is not available (e.g., in tests)
+      logger.debug('file-type module not available, using magic bytes only');
+    }
+
     logger.info('File signature check', {
       expectedExtension,
       detectedType: detectedType?.ext,

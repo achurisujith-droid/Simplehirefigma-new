@@ -109,6 +109,17 @@ app.get('/health', async (req, res) => {
   }
 });
 
+// Root endpoint
+app.get('/', async (req, res) => {
+  res.json({
+    success: true,
+    message: 'Simplehire Backend API is running',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+    health: health,
+  });
+});
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);

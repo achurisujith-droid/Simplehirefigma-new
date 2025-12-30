@@ -388,6 +388,15 @@ For a complete list with detailed descriptions, see [`.env.example`](.env.exampl
 
 Railway provides the easiest way to deploy Simplehire with zero-config PostgreSQL and automatic HTTPS.
 
+> **🎉 Recent Improvements**: This repository has been updated with enhanced deployment support:
+> - ✅ Prisma migrations included for automatic database setup
+> - ✅ Environment variable validation with clear error messages
+> - ✅ Enhanced health checks with service status monitoring
+> - ✅ Updated dependencies for better security and compatibility
+> - ✅ Comprehensive deployment documentation
+> 
+> See [FIX_SUMMARY.md](FIX_SUMMARY.md) for details on recent improvements.
+
 ### Quick Railway Setup
 
 1. **Create Railway Account**: Sign up at [railway.app](https://railway.app)
@@ -447,12 +456,17 @@ This repository includes Railway-specific configuration:
 
 ### Troubleshooting Railway Deployment
 
-See the detailed [Railway Setup Guide](RAILWAY_SETUP.md) for:
-- Step-by-step deployment instructions
+For comprehensive deployment assistance, see:
+- **[Railway Deployment Checklist](RAILWAY_DEPLOYMENT_CHECKLIST.md)** - Step-by-step checklist with verification steps
+- **[Railway Setup Guide](RAILWAY_SETUP.md)** - Detailed deployment instructions and troubleshooting
+- **[Fix Summary](FIX_SUMMARY.md)** - Recent improvements and resolved issues
+
+Common issues and solutions:
 - Environment variable configuration
-- Common deployment errors and solutions
-- Database migration troubleshooting
-- Health check configuration
+- Database migration errors  
+- Health check failures
+- LLM configuration issues
+- Service availability monitoring
 
 ---
 
@@ -698,6 +712,8 @@ Contributions are welcome! Please follow these steps:
 
 ## 📖 Additional Documentation
 
+- **[Railway Deployment Checklist](RAILWAY_DEPLOYMENT_CHECKLIST.md)**: Step-by-step deployment verification
+- **[Fix Summary](FIX_SUMMARY.md)**: Recent deployment improvements and resolved issues
 - **[Complete Setup Guide](Simplehirefigma-main/src/COMPLETE_SETUP_GUIDE.md)**: Detailed setup instructions
 - **[Backend Integration](Simplehirefigma-main/src/BACKEND_INTEGRATION.md)**: API specifications and integration guide
 - **[Backend README](Simplehirefigma-main/src/backend/README.md)**: Backend-specific documentation

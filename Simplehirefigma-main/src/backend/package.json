@@ -5,8 +5,11 @@
   "main": "dist/server.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
+    "clean": "rm -rf dist node_modules package-lock.json && npm cache clean --force",
+    "prebuild": "rm -rf dist",
+    "build": "tsc && node scripts/verify-build.js",
     "start": "node dist/server.js",
+    "fresh-build": "npm run clean && npm install && npm run build",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",

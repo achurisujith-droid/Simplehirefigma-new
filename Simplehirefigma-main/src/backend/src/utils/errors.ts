@@ -1,23 +1,32 @@
-// Custom error class with proper Error inheritance
+// Custom error class with bulletproof Error inheritance
 export class AppError extends Error {
   public statusCode: number;
   public code: string;
   public details?: any;
 
   constructor(message: string, statusCode: number = 500, code: string = 'ERROR', details?: any) {
+    // Ensure Error is available
+    if (typeof Error === 'undefined') {
+      throw new TypeError('Error constructor is not available');
+    }
+    
     super(message);
     
-    // Restore prototype chain for proper instanceof checks
-    Object.setPrototypeOf(this, AppError.prototype);
+    // Set the name explicitly
+    this.name = this.constructor.name || 'AppError';
     
-    this.name = 'AppError';
+    // Restore prototype chain for proper instanceof checks
+    Object.setPrototypeOf(this, new.target.prototype);
+    
     this.statusCode = statusCode;
     this.code = code;
     this.details = details;
     
-    // Capture stack trace
-    if (Error.captureStackTrace) {
-      Error.captureStackTrace(this, this.constructor);
+    // Capture stack trace with fallback
+    if (typeof (Error as any).captureStackTrace === 'function') {
+      (Error as any).captureStackTrace(this, this.constructor);
+    } else {
+      this.stack = (new Error(message)).stack;
     }
   }
 

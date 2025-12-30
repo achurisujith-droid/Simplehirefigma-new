@@ -7,14 +7,26 @@ import { AppError } from '../utils/errors';
 import config from '../config';
 import prisma from '../config/database';
 
+require('dotenv').config();
+
 const router = Router();
 const stripe = new Stripe(config.stripe.secretKey, { apiVersion: '2025-02-24.acacia' });
+
+// Add warning when running in development with placeholder key
+if (process.env.NODE_ENV !== 'production' && process.env.STRIPE_SECRET_KEY === 'sk_test_placeholder') {
+  console.warn('Warning: Stripe is running in placeholder mode. Replace the placeholder key with a real Stripe secret key.');
+}
 
 // All routes require authentication
 router.use(authenticate);
 
 // Create payment intent
 router.post('/create-intent', async (req: AuthRequest, res: Response, next: NextFunction) => {
+      // Check if Stripe is in placeholder mode
+    if (process.env.STRIPE_SECRET_KEY === 'sk_test_placeholder' || !process.env.STRIPE_SECRET_KEY) {
+      console.log('Stripe is in placeholder mode, no paymentIntent created.');
+      return res.status(200).json({ message: 'Placeholder response: PaymentIntent not created.' });
+    }
   try {
     const { productId } = req.body;
 

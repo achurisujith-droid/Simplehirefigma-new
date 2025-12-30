@@ -4,15 +4,15 @@
   "description": "Simplehire - Candidate Verification Platform",
   "private": true,
   "scripts": {
-    "install:backend": "cd Simplehirefigma-main/src/backend && npm install",
+    "install:backend": "cd Simplehirefigma-main/src/backend && rm -rf node_modules && npm install",
     "install:frontend": "cd Simplehirefigma-main && npm install",
-    "build:backend": "cd Simplehirefigma-main/src/backend && npm run build",
+    "build:backend": "cd Simplehirefigma-main/src/backend && rm -rf dist && npm run build",
     "build:frontend": "cd Simplehirefigma-main && npm run build",
     "start:backend": "cd Simplehirefigma-main/src/backend && npm start",
     "dev:backend": "cd Simplehirefigma-main/src/backend && npm run dev",
     "prisma:generate": "cd Simplehirefigma-main/src/backend && npx prisma generate",
     "prisma:migrate": "cd Simplehirefigma-main/src/backend && npx prisma migrate deploy",
-    "railway:build": "npm run install:backend && npm run prisma:generate && npm run build:backend",
+    "railway:build": "rm -rf node_modules && npm run install:backend && npm run prisma:generate && npm run build:backend",
     "railway:start": "npm run prisma:migrate && npm run start:backend"
   },
   "engines": {

@@ -20,11 +20,11 @@ RUN rm -rf node_modules package-lock.json dist .npm .cache && \
 
 # Install root dependencies
 # Cache bust: Dec 30 2025 1520
-RUN npm ci
+RUN npm install
 
 # Install backend dependencies
 WORKDIR /app/Simplehirefigma-main/src/backend
-RUN npm ci
+RUN npm install
 
 # Generate Prisma Client
 RUN npx prisma generate

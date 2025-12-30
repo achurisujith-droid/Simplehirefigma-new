@@ -14,31 +14,27 @@ export interface EnvValidationError {
 /**
  * Required environment variables for the application to function
  */
-const REQUIRED_VARIABLES = [
-  'DATABASE_URL',
-  'JWT_SECRET',
-  'JWT_REFRESH_SECRET',
-] as const;
+const REQUIRED_VARIABLES = ['DATABASE_URL', 'JWT_SECRET', 'JWT_REFRESH_SECRET'] as const;
 
 /**
  * Optional but recommended environment variables
  */
-const RECOMMENDED_VARIABLES = [
-  'OPENAI_API_KEY',
-  'FRONTEND_URL',
-  'APP_URL',
-  'NODE_ENV',
-] as const;
+const RECOMMENDED_VARIABLES = ['OPENAI_API_KEY', 'FRONTEND_URL', 'APP_URL', 'NODE_ENV'] as const;
 
 /**
  * Variables required for specific features
  */
 const FEATURE_VARIABLES: Record<string, string[]> = {
   'Multi-LLM Evaluation': ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY'],
-  'File Uploads (S3)': ['AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_REGION', 'AWS_S3_BUCKET'],
+  'File Uploads (S3)': [
+    'AWS_ACCESS_KEY_ID',
+    'AWS_SECRET_ACCESS_KEY',
+    'AWS_REGION',
+    'AWS_S3_BUCKET',
+  ],
   'Payment Processing': ['STRIPE_SECRET_KEY', 'STRIPE_PUBLISHABLE_KEY'],
   'Email Service': ['SENDGRID_API_KEY'],
-  'OAuth': ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'],
+  OAuth: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'],
 };
 
 /**
@@ -46,7 +42,7 @@ const FEATURE_VARIABLES: Record<string, string[]> = {
  */
 function validateRequired(variable: string): EnvValidationError | null {
   const value = process.env[variable];
-  
+
   if (!value || value.trim() === '') {
     return {
       variable,
@@ -54,7 +50,7 @@ function validateRequired(variable: string): EnvValidationError | null {
       severity: 'critical',
     };
   }
-  
+
   return null;
 }
 
@@ -63,7 +59,7 @@ function validateRequired(variable: string): EnvValidationError | null {
  */
 function validateRecommended(variable: string): EnvValidationError | null {
   const value = process.env[variable];
-  
+
   if (!value || value.trim() === '') {
     return {
       variable,
@@ -71,7 +67,7 @@ function validateRecommended(variable: string): EnvValidationError | null {
       severity: 'warning',
     };
   }
-  
+
   return null;
 }
 
@@ -80,10 +76,10 @@ function validateRecommended(variable: string): EnvValidationError | null {
  */
 function validateJWTSecrets(): EnvValidationError[] {
   const errors: EnvValidationError[] = [];
-  
+
   const jwtSecret = process.env.JWT_SECRET;
   const refreshSecret = process.env.JWT_REFRESH_SECRET;
-  
+
   if (jwtSecret && jwtSecret.length < 32) {
     errors.push({
       variable: 'JWT_SECRET',
@@ -91,7 +87,7 @@ function validateJWTSecrets(): EnvValidationError[] {
       severity: 'warning',
     });
   }
-  
+
   if (refreshSecret && refreshSecret.length < 32) {
     errors.push({
       variable: 'JWT_REFRESH_SECRET',
@@ -99,7 +95,7 @@ function validateJWTSecrets(): EnvValidationError[] {
       severity: 'warning',
     });
   }
-  
+
   if (jwtSecret && refreshSecret && jwtSecret === refreshSecret) {
     errors.push({
       variable: 'JWT_SECRET',
@@ -107,7 +103,7 @@ function validateJWTSecrets(): EnvValidationError[] {
       severity: 'warning',
     });
   }
-  
+
   return errors;
 }
 
@@ -116,20 +112,21 @@ function validateJWTSecrets(): EnvValidationError[] {
  */
 function validateDatabaseURL(): EnvValidationError | null {
   const dbUrl = process.env.DATABASE_URL;
-  
+
   if (!dbUrl) {
     return null; // Already caught by required validation
   }
-  
+
   // Basic PostgreSQL URL validation
   if (!dbUrl.startsWith('postgresql://') && !dbUrl.startsWith('postgres://')) {
     return {
       variable: 'DATABASE_URL',
-      message: 'DATABASE_URL must be a valid PostgreSQL connection string (postgresql:// or postgres://)',
+      message:
+        'DATABASE_URL must be a valid PostgreSQL connection string (postgresql:// or postgres://)',
       severity: 'critical',
     };
   }
-  
+
   return null;
 }
 
@@ -138,11 +135,11 @@ function validateDatabaseURL(): EnvValidationError | null {
  */
 function logFeatureAvailability(): void {
   logger.info('=== Feature Availability ===');
-  
+
   for (const [feature, variables] of Object.entries(FEATURE_VARIABLES)) {
     const allConfigured = variables.every(v => process.env[v] && process.env[v]!.trim() !== '');
     const someConfigured = variables.some(v => process.env[v] && process.env[v]!.trim() !== '');
-    
+
     if (allConfigured) {
       logger.info(`✓ ${feature}: Enabled`);
     } else if (someConfigured) {
@@ -152,7 +149,7 @@ function logFeatureAvailability(): void {
       logger.info(`✗ ${feature}: Disabled (not configured)`);
     }
   }
-  
+
   logger.info('============================');
 }
 
@@ -162,7 +159,7 @@ function logFeatureAvailability(): void {
  */
 export function validateEnvironment(): EnvValidationError[] {
   const errors: EnvValidationError[] = [];
-  
+
   // Check required variables
   for (const variable of REQUIRED_VARIABLES) {
     const error = validateRequired(variable);
@@ -170,7 +167,7 @@ export function validateEnvironment(): EnvValidationError[] {
       errors.push(error);
     }
   }
-  
+
   // Check recommended variables
   for (const variable of RECOMMENDED_VARIABLES) {
     const error = validateRecommended(variable);
@@ -178,16 +175,16 @@ export function validateEnvironment(): EnvValidationError[] {
       errors.push(error);
     }
   }
-  
+
   // Validate JWT secrets
   errors.push(...validateJWTSecrets());
-  
+
   // Validate database URL
   const dbError = validateDatabaseURL();
   if (dbError) {
     errors.push(dbError);
   }
-  
+
   return errors;
 }
 
@@ -197,13 +194,13 @@ export function validateEnvironment(): EnvValidationError[] {
  */
 export function validateEnvironmentOrExit(): void {
   logger.info('Validating environment variables...');
-  
+
   const errors = validateEnvironment();
-  
+
   // Separate critical and warning errors
   const criticalErrors = errors.filter(e => e.severity === 'critical');
   const warnings = errors.filter(e => e.severity === 'warning');
-  
+
   // Log warnings
   if (warnings.length > 0) {
     logger.warn(`Found ${warnings.length} environment warning(s):`);
@@ -211,7 +208,7 @@ export function validateEnvironmentOrExit(): void {
       logger.warn(`  - ${error.message}`);
     });
   }
-  
+
   // Log critical errors and exit if any found
   if (criticalErrors.length > 0) {
     logger.error(`Found ${criticalErrors.length} critical environment error(s):`);
@@ -223,10 +220,10 @@ export function validateEnvironmentOrExit(): void {
     logger.error('See .env.example or RAILWAY_SETUP.md for configuration instructions.');
     process.exit(1);
   }
-  
+
   // Log feature availability
   logFeatureAvailability();
-  
+
   logger.info('✓ Environment validation passed');
 }
 

@@ -54,7 +54,7 @@ function getPrimaryLanguage(classification: ProfileClassification): string {
   if (classification.primaryLanguages && classification.primaryLanguages.length > 0) {
     return classification.primaryLanguages[0];
   }
-  
+
   // Default based on role
   const roleDefaults: Record<string, string> = {
     software_dev: 'JavaScript',
@@ -62,7 +62,7 @@ function getPrimaryLanguage(classification: ProfileClassification): string {
     data_ml: 'Python',
     devops_sre: 'Python',
   };
-  
+
   return roleDefaults[classification.roleCategory] || 'JavaScript';
 }
 
@@ -160,7 +160,7 @@ Provide your code review covering:
       taskStyle,
     },
   };
-  
+
   return challenges[taskStyle];
 }
 
@@ -177,11 +177,11 @@ export async function generateCodingChallenges(
     const primaryLanguage = language || getPrimaryLanguage(classification);
     const difficulty = determineCodeDifficulty(classification.yearsExperience);
     const style = taskStyle || determineTaskStyle(classification.yearsExperience);
-    
+
     logger.info(
       `Generating ${challengeCount} coding challenges in ${primaryLanguage} at ${difficulty} level, style: ${style}`
     );
-    
+
     // Build system prompt for code generation
     const systemPrompt = `You are an expert technical interviewer creating coding challenges.
 
@@ -251,14 +251,15 @@ Return ONLY valid JSON array:
     }
 
     // Transform and validate challenges
-    const challenges: CodingChallenge[] = challengesData.map((c) => ({
+    const challenges: CodingChallenge[] = challengesData.map(c => ({
       id: uuidv4(),
       questionText: c.questionText || 'Write a function to solve this problem.',
       difficulty,
       language: c.language || primaryLanguage,
-      evaluationCriteria: Array.isArray(c.evaluationCriteria) && c.evaluationCriteria.length > 0
-        ? c.evaluationCriteria
-        : ['Correctness', 'Code quality', 'Problem solving', 'Completeness'],
+      evaluationCriteria:
+        Array.isArray(c.evaluationCriteria) && c.evaluationCriteria.length > 0
+          ? c.evaluationCriteria
+          : ['Correctness', 'Code quality', 'Problem solving', 'Completeness'],
       taskStyle: c.taskStyle || style,
       starterCode: c.starterCode,
       testCases: c.testCases,

@@ -4,11 +4,7 @@
  */
 
 import logger from '../../config/logger';
-import {
-  evaluateWithMultiLLM,
-  InterviewData,
-  ArbitratedResult,
-} from './multi-llm-arbiter.service';
+import { evaluateWithMultiLLM, InterviewData, ArbitratedResult } from './multi-llm-arbiter.service';
 
 export interface VoiceAnswer {
   questionId: string;
@@ -108,9 +104,9 @@ export function calculateWeightedScore(categoryScores: {
   // Weights from llm_config.json
   const weights = {
     technicalAccuracy: 0.35,
-    communicationClarity: 0.20,
+    communicationClarity: 0.2,
     problemSolving: 0.25,
-    experienceAlignment: 0.20,
+    experienceAlignment: 0.2,
   };
 
   const weightedScore =

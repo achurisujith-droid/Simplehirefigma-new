@@ -13,19 +13,12 @@ export const validateRequest = (schema: AnyZodObject) => {
       next();
     } catch (error) {
       if (error instanceof ZodError) {
-        const errorMessages = error.errors.map((err) => ({
+        const errorMessages = error.errors.map(err => ({
           field: err.path.join('.'),
           message: err.message,
         }));
-        
-        return next(
-          new AppError(
-            'Validation failed',
-            400,
-            'VALIDATION_ERROR',
-            errorMessages
-          )
-        );
+
+        return next(new AppError('Validation failed', 400, 'VALIDATION_ERROR', errorMessages));
       }
       next(error);
     }

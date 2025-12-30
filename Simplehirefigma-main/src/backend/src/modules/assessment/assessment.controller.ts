@@ -22,7 +22,7 @@ const prisma = new PrismaClient();
 /**
  * Start Assessment
  * POST /api/interviews/start-assessment
- * 
+ *
  * Steps:
  * 1. Parse resume (PDF/DOCX)
  * 2. Analyze resume with OpenAI
@@ -33,11 +33,7 @@ const prisma = new PrismaClient();
  * 7. Create AssessmentPlan record
  * 8. Return sessionId, plan, analysis
  */
-export async function startAssessment(
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) {
+export async function startAssessment(req: AuthRequest, res: Response, next: NextFunction) {
   let tempResumeDir: string | null = null;
 
   try {

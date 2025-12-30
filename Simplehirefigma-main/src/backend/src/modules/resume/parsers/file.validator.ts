@@ -22,7 +22,7 @@ export async function verifyFileSignature(
     logger.info('File signature check', {
       expectedExtension,
       detectedType: detectedType?.ext,
-      magicBytes: Array.from(buffer).map((b) => b.toString(16).padStart(2, '0')),
+      magicBytes: Array.from(buffer).map(b => b.toString(16).padStart(2, '0')),
     });
 
     const normalizedExt = expectedExtension.toLowerCase().replace('.', '');

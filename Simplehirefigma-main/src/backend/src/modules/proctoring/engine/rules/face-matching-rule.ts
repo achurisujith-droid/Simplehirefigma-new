@@ -40,10 +40,7 @@ export class FaceMatchingRule extends BaseRule {
       }
 
       // Compare faces using AWS Rekognition
-      const result = await faceMatchingService.compareFaces(
-        referenceImageBase64,
-        liveImageBase64
-      );
+      const result = await faceMatchingService.compareFaces(referenceImageBase64, liveImageBase64);
 
       logger.info(
         `Face matching result: match=${result.match}, similarity=${result.similarity.toFixed(2)}%`

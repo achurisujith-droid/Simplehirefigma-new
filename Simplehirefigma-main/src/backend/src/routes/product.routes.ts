@@ -13,8 +13,8 @@ router.get('/', (req, res) => {
 
 // Get product by ID (public route)
 router.get('/:productId', (req, res) => {
-  const product = PRODUCTS.find((p) => p.id === req.params.productId);
-  
+  const product = PRODUCTS.find(p => p.id === req.params.productId);
+
   if (!product) {
     return res.status(404).json({
       success: false,

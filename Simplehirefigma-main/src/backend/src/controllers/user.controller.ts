@@ -24,8 +24,9 @@ export const getUserData = async (req: AuthRequest, res: Response, next: NextFun
     let referenceCheckStatus = user.userData?.referenceCheckStatus || 'not-started';
 
     if (references.length > 0) {
-      const hasSubmitted = references.some((ref) => ref.status !== 'draft');
-      const allVerified = references.length > 0 && references.every((ref) => ref.status === 'verified');
+      const hasSubmitted = references.some(ref => ref.status !== 'draft');
+      const allVerified =
+        references.length > 0 && references.every(ref => ref.status === 'verified');
 
       if (allVerified) {
         referenceCheckStatus = 'verified';

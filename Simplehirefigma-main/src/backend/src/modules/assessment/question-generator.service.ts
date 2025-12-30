@@ -4,11 +4,7 @@
  */
 
 import logger from '../../config/logger';
-import {
-  QuestionGenerationContext,
-  ResumeAnalysis,
-  openaiService,
-} from '../ai/openai.service';
+import { QuestionGenerationContext, ResumeAnalysis, openaiService } from '../ai/openai.service';
 import { ProfileClassification } from './profile-classifier.service';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -78,9 +74,7 @@ export async function generateVoiceQuestions(
         questions.push(question);
         previousQuestions.push({ question: generatedQuestion.text });
 
-        logger.info(
-          `Generated question ${i + 1}/${questionCount}: ${generatedQuestion.topic}`
-        );
+        logger.info(`Generated question ${i + 1}/${questionCount}: ${generatedQuestion.topic}`);
       } catch (error) {
         logger.error(`Error generating question ${i + 1}:`, error);
         // Add a fallback generic question
@@ -123,7 +117,7 @@ function buildResumeSummary(analysis: ResumeAnalysis): string {
   const recentExperience = analysis.workExperience.slice(0, 2);
   if (recentExperience.length > 0) {
     parts.push('\nRecent Experience:');
-    recentExperience.forEach((exp) => {
+    recentExperience.forEach(exp => {
       parts.push(`- ${exp.role} at ${exp.company} (${exp.duration})`);
     });
   }
@@ -139,9 +133,7 @@ function buildResumeSummary(analysis: ResumeAnalysis): string {
 /**
  * Map years of experience to difficulty level
  */
-function mapExperienceToLevel(
-  yearsExperience: number
-): 'entry' | 'mid' | 'senior' | 'executive' {
+function mapExperienceToLevel(yearsExperience: number): 'entry' | 'mid' | 'senior' | 'executive' {
   if (yearsExperience < 2) return 'entry';
   if (yearsExperience < 5) return 'mid';
   if (yearsExperience < 10) return 'senior';

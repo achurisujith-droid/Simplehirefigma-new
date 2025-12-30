@@ -3,10 +3,7 @@
  */
 
 import { describe, it, expect } from '@jest/globals';
-import {
-  ResumeAnalysis,
-  openaiService,
-} from '../src/modules/ai/openai.service';
+import { ResumeAnalysis, openaiService } from '../src/modules/ai/openai.service';
 import { assessmentPlannerService } from '../src/modules/assessment/assessment-planner.service';
 import { questionGeneratorService } from '../src/modules/assessment/question-generator.service';
 

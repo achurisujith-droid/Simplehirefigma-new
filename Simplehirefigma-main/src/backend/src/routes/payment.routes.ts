@@ -10,11 +10,21 @@ import prisma from '../config/database';
 require('dotenv').config();
 
 const router = Router();
-const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-02-24.acacia' }) : new Stripe('sk_test_placeholder', { apiVersion: '2025-02-24.acacia' });
+const stripe = process.env.STRIPE_SECRET_KEY
+  ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-02-24.acacia' })
+  : new Stripe('sk_test_placeholder', { apiVersion: '2025-02-24.acacia' });
 
-// Add warning when running in development with placeholder key
-if (process.env.NODE_ENV !== 'production' && process.env.STRIPE_SECRET_KEY === 'sk_test_placeholder') {
-  console.warn('Warning: Stripe is running in placeholder mode. Replace the placeholder key with a real Stripe secret key.');
+// Add warning when running with placeholder key
+if (
+  !process.env.STRIPE_SECRET_KEY ||
+  process.env.STRIPE_SECRET_KEY === 'sk_test_placeholder'
+) {
+  console.warn(
+    '⚠️  Warning: Stripe is running in placeholder mode. Payment functionality will be limited.'
+  );
+  console.warn(
+    '⚠️  To enable full payment processing, set STRIPE_SECRET_KEY to a valid Stripe secret key.'
+  );
 }
 
 // All routes require authentication
@@ -22,15 +32,15 @@ router.use(authenticate);
 
 // Create payment intent
 router.post('/create-intent', async (req: AuthRequest, res: Response, next: NextFunction) => {
-      // Check if Stripe is in placeholder mode
-    if (process.env.STRIPE_SECRET_KEY === 'sk_test_placeholder' || !process.env.STRIPE_SECRET_KEY) {
-      console.log('Stripe is in placeholder mode, no paymentIntent created.');
-      return res.status(200).json({ message: 'Placeholder response: PaymentIntent not created.' });
-    }
+  // Check if Stripe is in placeholder mode
+  if (process.env.STRIPE_SECRET_KEY === 'sk_test_placeholder' || !process.env.STRIPE_SECRET_KEY) {
+    console.log('Stripe is in placeholder mode, no paymentIntent created.');
+    return res.status(200).json({ message: 'Placeholder response: PaymentIntent not created.' });
+  }
   try {
     const { productId } = req.body;
 
-    const product = PRODUCTS.find((p) => p.id === productId);
+    const product = PRODUCTS.find(p => p.id === productId);
     if (!product) {
       throw new AppError('Product not found', 404, 'NOT_FOUND');
     }
@@ -120,8 +130,8 @@ router.get('/history', async (req: AuthRequest, res: Response, next: NextFunctio
       orderBy: { createdAt: 'desc' },
     });
 
-    const formattedPayments = payments.map((p) => {
-      const product = PRODUCTS.find((prod) => prod.id === p.productId);
+    const formattedPayments = payments.map(p => {
+      const product = PRODUCTS.find(prod => prod.id === p.productId);
       return {
         id: p.id,
         productId: p.productId,

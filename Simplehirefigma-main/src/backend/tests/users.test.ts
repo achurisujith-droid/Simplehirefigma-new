@@ -21,9 +21,7 @@ describe('User API', () => {
     await prisma.user.deleteMany({});
 
     // Create and login user
-    const response = await request(app)
-      .post('/api/auth/signup')
-      .send(testUser);
+    const response = await request(app).post('/api/auth/signup').send(testUser);
 
     authToken = response.body.data.token;
     userId = response.body.data.user.id;
@@ -50,9 +48,7 @@ describe('User API', () => {
     });
 
     it('should require authentication', async () => {
-      await request(app)
-        .get('/api/users/me/data')
-        .expect(401);
+      await request(app).get('/api/users/me/data').expect(401);
     });
   });
 

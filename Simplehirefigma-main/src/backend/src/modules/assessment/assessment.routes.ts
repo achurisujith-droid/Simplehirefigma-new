@@ -25,7 +25,7 @@ router.use(authenticate);
 /**
  * POST /api/interviews/start-assessment
  * Start a new assessment by uploading resume and optional ID card
- * 
+ *
  * Form fields:
  * - resume: Resume file (PDF/DOCX) - required
  * - idCard: ID card image - optional

@@ -39,31 +39,33 @@ function determineLevel(score: number): SkillLevel {
  */
 function identifyStrengths(componentScores: ComponentScore[]): string[] {
   const strengths: string[] = [];
-  
+
   for (const component of componentScores) {
     if (component.score >= 80) {
-      const componentName = component.component === 'VOICE' 
-        ? 'Communication skills'
-        : component.component === 'MCQ'
-        ? 'Technical knowledge'
-        : 'Coding abilities';
+      const componentName =
+        component.component === 'VOICE'
+          ? 'Communication skills'
+          : component.component === 'MCQ'
+            ? 'Technical knowledge'
+            : 'Coding abilities';
       strengths.push(`Strong ${componentName.toLowerCase()}`);
     }
   }
-  
+
   // If no strong components, find the best one
   if (strengths.length === 0) {
-    const best = componentScores.reduce((prev, current) => 
+    const best = componentScores.reduce((prev, current) =>
       current.score > prev.score ? current : prev
     );
-    const componentName = best.component === 'VOICE' 
-      ? 'communication'
-      : best.component === 'MCQ'
-      ? 'technical knowledge'
-      : 'coding';
+    const componentName =
+      best.component === 'VOICE'
+        ? 'communication'
+        : best.component === 'MCQ'
+          ? 'technical knowledge'
+          : 'coding';
     strengths.push(`Adequate ${componentName}`);
   }
-  
+
   return strengths;
 }
 
@@ -72,31 +74,33 @@ function identifyStrengths(componentScores: ComponentScore[]): string[] {
  */
 function identifyAreasForImprovement(componentScores: ComponentScore[]): string[] {
   const improvements: string[] = [];
-  
+
   for (const component of componentScores) {
     if (component.score < 65) {
-      const componentName = component.component === 'VOICE' 
-        ? 'Communication and articulation'
-        : component.component === 'MCQ'
-        ? 'Theoretical knowledge'
-        : 'Practical coding skills';
+      const componentName =
+        component.component === 'VOICE'
+          ? 'Communication and articulation'
+          : component.component === 'MCQ'
+            ? 'Theoretical knowledge'
+            : 'Practical coding skills';
       improvements.push(componentName);
     }
   }
-  
+
   // If no weak components, suggest general improvements
   if (improvements.length === 0) {
-    const weakest = componentScores.reduce((prev, current) => 
+    const weakest = componentScores.reduce((prev, current) =>
       current.score < prev.score ? current : prev
     );
-    const componentName = weakest.component === 'VOICE' 
-      ? 'communication skills'
-      : weakest.component === 'MCQ'
-      ? 'technical knowledge breadth'
-      : 'coding efficiency';
+    const componentName =
+      weakest.component === 'VOICE'
+        ? 'communication skills'
+        : weakest.component === 'MCQ'
+          ? 'technical knowledge breadth'
+          : 'coding efficiency';
     improvements.push(`Further enhance ${componentName}`);
   }
-  
+
   return improvements;
 }
 
@@ -109,11 +113,11 @@ function identifyAreasForImprovement(componentScores: ComponentScore[]): string[
  */
 function calculateWeights(components: Array<'VOICE' | 'MCQ' | 'CODE'>): Record<string, number> {
   const weights: Record<string, number> = {};
-  
+
   const hasVoice = components.includes('VOICE');
   const hasMCQ = components.includes('MCQ');
   const hasCode = components.includes('CODE');
-  
+
   if (hasVoice && hasMCQ && hasCode) {
     // All three components
     weights.VOICE = 0.3;
@@ -141,7 +145,7 @@ function calculateWeights(components: Array<'VOICE' | 'MCQ' | 'CODE'>): Record<s
     // Code only
     weights.CODE = 1.0;
   }
-  
+
   return weights;
 }
 
@@ -159,17 +163,17 @@ export function aggregateScores(
     if (voiceScore !== undefined) availableComponents.push('VOICE');
     if (mcqScore !== undefined) availableComponents.push('MCQ');
     if (codeScore !== undefined) availableComponents.push('CODE');
-    
+
     if (availableComponents.length === 0) {
       throw new Error('No component scores provided');
     }
-    
+
     // Calculate weights
     const weights = calculateWeights(availableComponents);
-    
+
     // Build component scores array
     const componentScores: ComponentScore[] = [];
-    
+
     if (voiceScore !== undefined) {
       componentScores.push({
         component: 'VOICE',
@@ -177,7 +181,7 @@ export function aggregateScores(
         weight: weights.VOICE || 0,
       });
     }
-    
+
     if (mcqScore !== undefined) {
       componentScores.push({
         component: 'MCQ',
@@ -185,7 +189,7 @@ export function aggregateScores(
         weight: weights.MCQ || 0,
       });
     }
-    
+
     if (codeScore !== undefined) {
       componentScores.push({
         component: 'CODE',
@@ -193,24 +197,24 @@ export function aggregateScores(
         weight: weights.CODE || 0,
       });
     }
-    
+
     // Calculate overall weighted score
     const overallScore = componentScores.reduce(
       (sum, component) => sum + component.score * component.weight,
       0
     );
-    
+
     // Determine level
     const level = determineLevel(overallScore);
-    
+
     // Identify strengths and improvements
     const strengths = identifyStrengths(componentScores);
     const areasForImprovement = identifyAreasForImprovement(componentScores);
-    
+
     logger.info(
       `Aggregated scores: Overall=${overallScore.toFixed(1)}, Level=${level}, Components=${availableComponents.join(',')}`
     );
-    
+
     return {
       overallScore: Math.round(overallScore),
       level,

@@ -20,10 +20,7 @@ describe('Authentication API', () => {
 
   describe('POST /api/auth/signup', () => {
     it('should create a new user successfully', async () => {
-      const response = await request(app)
-        .post('/api/auth/signup')
-        .send(testUser)
-        .expect(201);
+      const response = await request(app).post('/api/auth/signup').send(testUser).expect(201);
 
       expect(response.body.success).toBe(true);
       expect(response.body.data.user).toMatchObject({
@@ -39,10 +36,7 @@ describe('Authentication API', () => {
       await request(app).post('/api/auth/signup').send(testUser);
 
       // Try to create again
-      const response = await request(app)
-        .post('/api/auth/signup')
-        .send(testUser)
-        .expect(400);
+      const response = await request(app).post('/api/auth/signup').send(testUser).expect(400);
 
       expect(response.body.success).toBe(false);
       expect(response.body.error).toContain('email');
@@ -124,10 +118,8 @@ describe('Authentication API', () => {
 
     beforeEach(async () => {
       // Create and login user
-      const loginResponse = await request(app)
-        .post('/api/auth/signup')
-        .send(testUser);
-      
+      const loginResponse = await request(app).post('/api/auth/signup').send(testUser);
+
       authToken = loginResponse.body.data.token;
     });
 
@@ -142,9 +134,7 @@ describe('Authentication API', () => {
     });
 
     it('should reject request without token', async () => {
-      const response = await request(app)
-        .get('/api/auth/me')
-        .expect(401);
+      const response = await request(app).get('/api/auth/me').expect(401);
 
       expect(response.body.success).toBe(false);
     });
@@ -163,10 +153,8 @@ describe('Authentication API', () => {
     let authToken: string;
 
     beforeEach(async () => {
-      const loginResponse = await request(app)
-        .post('/api/auth/signup')
-        .send(testUser);
-      
+      const loginResponse = await request(app).post('/api/auth/signup').send(testUser);
+
       authToken = loginResponse.body.data.token;
     });
 
@@ -184,10 +172,8 @@ describe('Authentication API', () => {
     let refreshToken: string;
 
     beforeEach(async () => {
-      const loginResponse = await request(app)
-        .post('/api/auth/signup')
-        .send(testUser);
-      
+      const loginResponse = await request(app).post('/api/auth/signup').send(testUser);
+
       refreshToken = loginResponse.body.data.refreshToken;
     });
 

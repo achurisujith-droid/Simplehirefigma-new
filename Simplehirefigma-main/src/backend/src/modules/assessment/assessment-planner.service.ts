@@ -5,10 +5,7 @@
  */
 
 import logger from '../../config/logger';
-import {
-  ProfileClassification,
-  RoleCategory,
-} from './profile-classifier.service';
+import { ProfileClassification, RoleCategory } from './profile-classifier.service';
 
 export type AssessmentComponent = 'VOICE' | 'MCQ' | 'CODE';
 
@@ -30,9 +27,7 @@ export interface AssessmentPlan {
  * Determine which assessment components to enable based on profile
  * CRITICAL BUSINESS RULES from elevenlabsgitcopilot
  */
-function determineComponents(
-  classification: ProfileClassification
-): AssessmentComponent[] {
+function determineComponents(classification: ProfileClassification): AssessmentComponent[] {
   const components: AssessmentComponent[] = [];
   const { roleCategory, codingExpected, recentCoding, yearsExperience, primaryLanguages } =
     classification;
@@ -168,9 +163,7 @@ function mapExperienceToLevel(yearsExperience: number): 'entry' | 'mid' | 'senio
 /**
  * Plan assessment based on profile classification
  */
-export function planAssessment(
-  classification: ProfileClassification
-): AssessmentPlan {
+export function planAssessment(classification: ProfileClassification): AssessmentPlan {
   try {
     // Determine experience level
     const difficulty = mapExperienceToLevel(classification.yearsExperience);
@@ -185,12 +178,7 @@ export function planAssessment(
     const duration = calculateDuration(questionCounts);
 
     // Generate rationale
-    const rationale = generateRationale(
-      classification,
-      components,
-      questionCounts,
-      difficulty
-    );
+    const rationale = generateRationale(classification, components, questionCounts, difficulty);
 
     const plan: AssessmentPlan = {
       components,

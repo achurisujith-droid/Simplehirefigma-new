@@ -18,10 +18,7 @@ const logger = winston.createLogger({
 // Console logging for all environments (critical for cloud deployments)
 logger.add(
   new winston.transports.Console({
-    format: winston.format.combine(
-      winston.format.colorize(),
-      winston.format.simple()
-    ),
+    format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
   })
 );
 

@@ -15,15 +15,11 @@ const prisma = new PrismaClient();
 /**
  * Verify Identity
  * POST /api/proctoring/verify-identity
- * 
+ *
  * Compares live face capture with reference ID card photo
  * Logs result to ProctoringEvent table
  */
-export async function verifyIdentity(
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) {
+export async function verifyIdentity(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     if (!req.user) {
       throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
@@ -37,11 +33,7 @@ export async function verifyIdentity(
     }
 
     if (!referenceImageBase64 || !liveImageBase64) {
-      throw new AppError(
-        'Reference image and live image are required',
-        400,
-        'VALIDATION_ERROR'
-      );
+      throw new AppError('Reference image and live image are required', 400, 'VALIDATION_ERROR');
     }
 
     logger.info(`Verifying identity for interview ${interviewId}`);
@@ -57,9 +49,7 @@ export async function verifyIdentity(
     // Extract similarity from violations (if any)
     let similarity = 0;
     if (result.violations.length > 0) {
-      const faceMatchViolation = result.violations.find(
-        (v) => v.ruleId === 'face-matching'
-      );
+      const faceMatchViolation = result.violations.find(v => v.ruleId === 'face-matching');
       if (faceMatchViolation?.data?.similarity !== undefined) {
         similarity = faceMatchViolation.data.similarity;
       }
@@ -100,15 +90,11 @@ export async function verifyIdentity(
 /**
  * Monitor Session
  * POST /api/proctoring/monitor
- * 
+ *
  * Continuous monitoring during interview
  * Logs result to ProctoringEvent table
  */
-export async function monitorSession(
-  req: AuthRequest,
-  res: Response,
-  next: NextFunction
-) {
+export async function monitorSession(req: AuthRequest, res: Response, next: NextFunction) {
   try {
     if (!req.user) {
       throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
@@ -122,11 +108,7 @@ export async function monitorSession(
     }
 
     if (!referenceImageBase64 || !liveImageBase64) {
-      throw new AppError(
-        'Reference image and live image are required',
-        400,
-        'VALIDATION_ERROR'
-      );
+      throw new AppError('Reference image and live image are required', 400, 'VALIDATION_ERROR');
     }
 
     logger.info(`Monitoring session for interview ${interviewId}`);
@@ -142,9 +124,7 @@ export async function monitorSession(
     // Extract similarity from violations (if any)
     let similarity = 0;
     if (result.violations.length > 0) {
-      const faceMatchViolation = result.violations.find(
-        (v) => v.ruleId === 'face-matching'
-      );
+      const faceMatchViolation = result.violations.find(v => v.ruleId === 'face-matching');
       if (faceMatchViolation?.data?.similarity !== undefined) {
         similarity = faceMatchViolation.data.similarity;
       }

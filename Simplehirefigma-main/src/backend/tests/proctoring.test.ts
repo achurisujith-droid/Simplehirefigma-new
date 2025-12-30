@@ -35,14 +35,14 @@ describe('Proctoring Engine', () => {
       const initialCount = engine.getRules().length;
       const customRule = new FaceMatchingRule(true, 90);
       engine.addRule(customRule);
-      
+
       expect(engine.getRules().length).toBe(initialCount + 1);
     });
 
     it('should remove rules by ID', () => {
       const initialCount = engine.getRules().length;
       const removed = engine.removeRule('face-matching');
-      
+
       expect(removed).toBe(true);
       expect(engine.getRules().length).toBe(initialCount - 1);
     });
@@ -51,7 +51,7 @@ describe('Proctoring Engine', () => {
       engine.disableRule('face-matching');
       const rules = engine.getRules();
       const rule = rules.find(r => r.id === 'face-matching');
-      
+
       expect(rule?.enabled).toBe(false);
 
       engine.enableRule('face-matching');

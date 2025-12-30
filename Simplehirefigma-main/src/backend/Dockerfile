@@ -7,6 +7,7 @@ COPY package*.json ./
 COPY prisma ./prisma/
 
 # Install dependencies
+RUN rm -rf /app/node_modules /app/package-lock.json && npm cache clean --force
 RUN npm ci
 
 # Copy source

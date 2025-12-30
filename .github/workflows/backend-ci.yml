@@ -1,0 +1,123 @@
+name: Backend CI
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'Simplehirefigma-main/src/backend/**'
+      - '.github/workflows/backend-ci.yml'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'Simplehirefigma-main/src/backend/**'
+      - '.github/workflows/backend-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+    
+    # PostgreSQL service for testing
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: simplehire_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    
+    defaults:
+      run:
+        working-directory: Simplehirefigma-main/src/backend
+
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: Simplehirefigma-main/src/backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Run database migrations
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/simplehire_test
+
+      - name: Run linter
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Run TypeScript type checking
+        run: npx tsc --noEmit
+
+      - name: Run Prettier check
+        run: npx prettier --check "src/**/*.ts" "tests/**/*.ts"
+        continue-on-error: true
+
+      - name: Run tests
+        run: npm test
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://test:test@localhost:5432/simplehire_test
+          JWT_SECRET: test-jwt-secret-for-ci-minimum-32-characters
+          JWT_REFRESH_SECRET: test-refresh-secret-for-ci-minimum-32-chars
+
+      - name: Check for security vulnerabilities
+        run: npm audit --audit-level=moderate
+        continue-on-error: true
+
+  dependency-check:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+    
+    defaults:
+      run:
+        working-directory: Simplehirefigma-main/src/backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+          cache-dependency-path: Simplehirefigma-main/src/backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check for outdated dependencies
+        run: npm outdated || true
+
+      - name: Security audit
+        run: npm audit --audit-level=moderate
+        continue-on-error: true

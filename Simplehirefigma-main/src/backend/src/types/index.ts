@@ -104,4 +104,10 @@ export const PRODUCTS: ProductConfig[] = [
 
 export type VerificationStatus = 'not-started' | 'in-progress' | 'pending' | 'verified';
 export type ReferenceStatus = 'draft' | 'pending' | 'email-sent' | 'response-received' | 'verified';
-export type DocumentType = 'passport' | 'drivers-license' | 'national-id' | 'visa' | 'ead' | 'green-card';
+export type DocumentType =
+  | 'passport'
+  | 'drivers-license'
+  | 'national-id'
+  | 'visa'
+  | 'ead'
+  | 'green-card';

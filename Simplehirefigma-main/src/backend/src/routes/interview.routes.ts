@@ -60,7 +60,7 @@ interface InterviewPlanData {
 }
 
 const router = Router();
-const upload = multer({ 
+const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: config.fileUpload.maxFileSize },
 });
@@ -69,36 +69,40 @@ const upload = multer({
 router.use(authenticate);
 
 // Upload documents
-router.post('/documents', upload.fields([
-  { name: 'resume', maxCount: 1 },
-  { name: 'coverLetter', maxCount: 1 }
-]), async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
-    
-    if (!files.resume) {
-      throw new AppError('Resume is required', 400, 'VALIDATION_ERROR');
+router.post(
+  '/documents',
+  upload.fields([
+    { name: 'resume', maxCount: 1 },
+    { name: 'coverLetter', maxCount: 1 },
+  ]),
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+      if (!files.resume) {
+        throw new AppError('Resume is required', 400, 'VALIDATION_ERROR');
+      }
+
+      const resumeResult = await uploadFile(files.resume[0], 'resumes');
+      let coverLetterUrl;
+
+      if (files.coverLetter) {
+        const coverResult = await uploadFile(files.coverLetter[0], 'cover-letters');
+        coverLetterUrl = coverResult.url;
+      }
+
+      res.json({
+        success: true,
+        data: {
+          resumeUrl: resumeResult.url,
+          ...(coverLetterUrl && { coverLetterUrl }),
+        },
+      });
+    } catch (error) {
+      next(error);
     }
-
-    const resumeResult = await uploadFile(files.resume[0], 'resumes');
-    let coverLetterUrl;
-
-    if (files.coverLetter) {
-      const coverResult = await uploadFile(files.coverLetter[0], 'cover-letters');
-      coverLetterUrl = coverResult.url;
-    }
-
-    res.json({
-      success: true,
-      data: {
-        resumeUrl: resumeResult.url,
-        ...(coverLetterUrl && { coverLetterUrl }),
-      },
-    });
-  } catch (error) {
-    next(error);
   }
-});
+);
 
 // Start voice interview
 router.post('/voice/start', async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -112,7 +116,11 @@ router.post('/voice/start', async (req: AuthRequest, res: Response, next: NextFu
       data: {
         sessionId: 'session_' + Date.now(),
         questions: [
-          { id: 'q1', question: 'Tell me about your experience with ' + role, category: 'experience' },
+          {
+            id: 'q1',
+            question: 'Tell me about your experience with ' + role,
+            category: 'experience',
+          },
         ],
       },
     });
@@ -122,22 +130,26 @@ router.post('/voice/start', async (req: AuthRequest, res: Response, next: NextFu
 });
 
 // Submit voice interview
-router.post('/voice/submit', upload.single('audio'), async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    if (!req.file) {
-      throw new AppError('Audio file is required', 400, 'VALIDATION_ERROR');
+router.post(
+  '/voice/submit',
+  upload.single('audio'),
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.file) {
+        throw new AppError('Audio file is required', 400, 'VALIDATION_ERROR');
+      }
+
+      const audioResult = await uploadFile(req.file, 'interviews');
+
+      res.json({
+        success: true,
+        message: 'Interview submitted for evaluation',
+      });
+    } catch (error) {
+      next(error);
     }
-
-    const audioResult = await uploadFile(req.file, 'interviews');
-
-    res.json({
-      success: true,
-      message: 'Interview submitted for evaluation',
-    });
-  } catch (error) {
-    next(error);
   }
-});
+);
 
 // Get MCQ questions - DYNAMIC GENERATION
 router.get('/mcq', async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -145,15 +157,19 @@ router.get('/mcq', async (req: AuthRequest, res: Response, next: NextFunction) =
     // Get or create assessment plan for this user
     const assessmentPlan = await prisma.assessmentPlan.findFirst({
       where: { userId: req.user!.id, status: 'DRAFT' },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
 
     if (!assessmentPlan || !assessmentPlan.interviewPlan) {
-      throw new AppError('No assessment plan found. Please upload your resume first.', 404, 'NOT_FOUND');
+      throw new AppError(
+        'No assessment plan found. Please upload your resume first.',
+        404,
+        'NOT_FOUND'
+      );
     }
 
     const plan = assessmentPlan.interviewPlan as any;
-    
+
     // Check if MCQ questions already exist
     if (plan.mcqQuestions && Array.isArray(plan.mcqQuestions) && plan.mcqQuestions.length > 0) {
       // Return existing questions without correctAnswerIndex
@@ -165,7 +181,7 @@ router.get('/mcq', async (req: AuthRequest, res: Response, next: NextFunction) =
           options: q.options,
           category: q.skillCategory,
           difficulty: q.difficulty,
-        }))
+        })),
       });
     }
 
@@ -188,9 +204,9 @@ router.get('/mcq', async (req: AuthRequest, res: Response, next: NextFunction) =
       data: {
         interviewPlan: {
           ...plan,
-          mcqQuestions
-        }
-      }
+          mcqQuestions,
+        },
+      },
     });
 
     // Return questions without correct answers
@@ -202,7 +218,7 @@ router.get('/mcq', async (req: AuthRequest, res: Response, next: NextFunction) =
         options: q.options,
         category: q.skillCategory,
         difficulty: q.difficulty,
-      }))
+      })),
     });
   } catch (error) {
     next(error);
@@ -233,30 +249,40 @@ router.get('/coding', async (req: AuthRequest, res: Response, next: NextFunction
   try {
     const assessmentPlan = await prisma.assessmentPlan.findFirst({
       where: { userId: req.user!.id, status: 'DRAFT' },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
 
     if (!assessmentPlan || !assessmentPlan.interviewPlan) {
-      throw new AppError('No assessment plan found. Please upload your resume first.', 404, 'NOT_FOUND');
+      throw new AppError(
+        'No assessment plan found. Please upload your resume first.',
+        404,
+        'NOT_FOUND'
+      );
     }
 
     const plan = assessmentPlan.interviewPlan as any;
-    
+
     // Check if coding challenges already exist
-    if (plan.codingChallenges && Array.isArray(plan.codingChallenges) && plan.codingChallenges.length > 0) {
+    if (
+      plan.codingChallenges &&
+      Array.isArray(plan.codingChallenges) &&
+      plan.codingChallenges.length > 0
+    ) {
       // Return existing challenges
       return res.json({
         success: true,
         data: plan.codingChallenges.map((c: any) => ({
           id: c.id,
-          title: c.questionText ? c.questionText.split('\n')[0].substring(0, 100) : 'Coding Challenge',
+          title: c.questionText
+            ? c.questionText.split('\n')[0].substring(0, 100)
+            : 'Coding Challenge',
           description: c.questionText,
           difficulty: c.difficulty,
           evaluationCriteria: c.evaluationCriteria,
           language: c.language,
           starterCode: c.starterCode || '',
-          testCases: c.testCases || []
-        }))
+          testCases: c.testCases || [],
+        })),
       });
     }
 
@@ -279,23 +305,25 @@ router.get('/coding', async (req: AuthRequest, res: Response, next: NextFunction
       data: {
         interviewPlan: {
           ...plan,
-          codingChallenges
-        }
-      }
+          codingChallenges,
+        },
+      },
     });
 
     res.json({
       success: true,
       data: codingChallenges.map(c => ({
         id: c.id,
-        title: c.questionText ? c.questionText.split('\n')[0].substring(0, 100) : 'Coding Challenge',
+        title: c.questionText
+          ? c.questionText.split('\n')[0].substring(0, 100)
+          : 'Coding Challenge',
         description: c.questionText,
         difficulty: c.difficulty,
         evaluationCriteria: c.evaluationCriteria,
         language: c.language,
         starterCode: c.starterCode || '',
-        testCases: c.testCases || []
-      }))
+        testCases: c.testCases || [],
+      })),
     });
   } catch (error) {
     next(error);
@@ -326,7 +354,7 @@ router.get('/evaluation', async (req: AuthRequest, res: Response, next: NextFunc
 
     // Get the latest assessment plan for this user
     const assessmentPlan = await prisma.assessmentPlan.findFirst({
-      where: { 
+      where: {
         userId: req.user.id,
       },
       orderBy: { createdAt: 'desc' },
@@ -334,8 +362,8 @@ router.get('/evaluation', async (req: AuthRequest, res: Response, next: NextFunc
         interviews: {
           orderBy: { createdAt: 'desc' },
           take: 1,
-        }
-      }
+        },
+      },
     });
 
     if (!assessmentPlan) {
@@ -463,7 +491,11 @@ router.get('/evaluation', async (req: AuthRequest, res: Response, next: NextFunc
 // Generate certificate
 router.post('/certificate', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    const certificateNumber = 'SH-' + new Date().getFullYear() + '-' + Math.random().toString(36).substr(2, 6).toUpperCase();
+    const certificateNumber =
+      'SH-' +
+      new Date().getFullYear() +
+      '-' +
+      Math.random().toString(36).substr(2, 6).toUpperCase();
 
     res.json({
       success: true,
@@ -482,15 +514,15 @@ router.post('/certificate', async (req: AuthRequest, res: Response, next: NextFu
 router.post('/mcq/evaluate', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { questionId, selectedOptionIndex } = req.body;
-    
+
     if (typeof selectedOptionIndex !== 'number') {
       throw new AppError('selectedOptionIndex is required', 400, 'VALIDATION_ERROR');
     }
-    
+
     // Get stored question with correct answer
     const assessmentPlan = await prisma.assessmentPlan.findFirst({
       where: { userId: req.user!.id },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
 
     if (!assessmentPlan || !assessmentPlan.interviewPlan) {
@@ -517,8 +549,8 @@ router.post('/mcq/evaluate', async (req: AuthRequest, res: Response, next: NextF
       data: {
         isCorrect: evaluation.isCorrect,
         feedback: evaluation.feedback,
-        score: evaluation.rawScore
-      }
+        score: evaluation.rawScore,
+      },
     });
   } catch (error) {
     next(error);
@@ -529,15 +561,15 @@ router.post('/mcq/evaluate', async (req: AuthRequest, res: Response, next: NextF
 router.post('/coding/evaluate', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { challengeId, code, language } = req.body;
-    
+
     if (!code || !language) {
       throw new AppError('code and language are required', 400, 'VALIDATION_ERROR');
     }
-    
+
     // Get stored challenge
     const assessmentPlan = await prisma.assessmentPlan.findFirst({
       where: { userId: req.user!.id },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
 
     if (!assessmentPlan || !assessmentPlan.interviewPlan) {
@@ -568,8 +600,8 @@ router.post('/coding/evaluate', async (req: AuthRequest, res: Response, next: Ne
         dimensions: evaluation.dimensions,
         feedback: evaluation.feedback,
         strengths: evaluation.strengths,
-        improvements: evaluation.improvements
-      }
+        improvements: evaluation.improvements,
+      },
     });
   } catch (error) {
     next(error);
@@ -577,55 +609,62 @@ router.post('/coding/evaluate', async (req: AuthRequest, res: Response, next: Ne
 });
 
 // GET /api/interviews/assessment-plan/:sessionId - Get assessment plan details
-router.get('/assessment-plan/:sessionId', async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    const { sessionId } = req.params;
-    
-    const assessmentPlan = await prisma.assessmentPlan.findUnique({
-      where: { id: sessionId }
-    });
+router.get(
+  '/assessment-plan/:sessionId',
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const { sessionId } = req.params;
 
-    if (!assessmentPlan) {
-      throw new AppError('Assessment plan not found', 404, 'NOT_FOUND');
-    }
+      const assessmentPlan = await prisma.assessmentPlan.findUnique({
+        where: { id: sessionId },
+      });
 
-    // Verify ownership
-    if (assessmentPlan.userId !== req.user!.id) {
-      throw new AppError('Unauthorized', 403, 'FORBIDDEN');
-    }
-
-    const plan = assessmentPlan.interviewPlan as any;
-
-    res.json({
-      success: true,
-      data: {
-        sessionId: assessmentPlan.id,
-        plan: {
-          components: assessmentPlan.components,
-          questionCounts: assessmentPlan.questionCounts,
-          difficulty: assessmentPlan.difficulty,
-          duration: assessmentPlan.estimatedDuration
-        },
-        voiceQuestions: plan?.voiceQuestions || [],
-        mcqQuestions: plan?.mcqQuestions?.map((q: any) => ({
-          id: q.id,
-          text: q.questionText,
-          topic: q.skillCategory,
-          difficulty: q.difficulty
-        })) || [],
-        codingChallenges: plan?.codingChallenges?.map((c: any) => ({
-          id: c.id,
-          title: c.questionText ? c.questionText.split('\n')[0].substring(0, 100) : 'Coding Challenge',
-          description: c.questionText,
-          difficulty: c.difficulty,
-          language: c.language
-        })) || [],
-        resumeUrl: assessmentPlan.resumeText ? 'resume-uploaded' : null
+      if (!assessmentPlan) {
+        throw new AppError('Assessment plan not found', 404, 'NOT_FOUND');
       }
-    });
-  } catch (error) {
-    next(error);
+
+      // Verify ownership
+      if (assessmentPlan.userId !== req.user!.id) {
+        throw new AppError('Unauthorized', 403, 'FORBIDDEN');
+      }
+
+      const plan = assessmentPlan.interviewPlan as any;
+
+      res.json({
+        success: true,
+        data: {
+          sessionId: assessmentPlan.id,
+          plan: {
+            components: assessmentPlan.components,
+            questionCounts: assessmentPlan.questionCounts,
+            difficulty: assessmentPlan.difficulty,
+            duration: assessmentPlan.estimatedDuration,
+          },
+          voiceQuestions: plan?.voiceQuestions || [],
+          mcqQuestions:
+            plan?.mcqQuestions?.map((q: any) => ({
+              id: q.id,
+              text: q.questionText,
+              topic: q.skillCategory,
+              difficulty: q.difficulty,
+            })) || [],
+          codingChallenges:
+            plan?.codingChallenges?.map((c: any) => ({
+              id: c.id,
+              title: c.questionText
+                ? c.questionText.split('\n')[0].substring(0, 100)
+                : 'Coding Challenge',
+              description: c.questionText,
+              difficulty: c.difficulty,
+              language: c.language,
+            })) || [],
+          resumeUrl: assessmentPlan.resumeText ? 'resume-uploaded' : null,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
   }
-});
+);
 
 export default router;

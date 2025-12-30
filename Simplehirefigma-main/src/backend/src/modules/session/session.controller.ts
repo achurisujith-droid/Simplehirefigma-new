@@ -67,7 +67,7 @@ export const getUserSessions = async (req: AuthRequest, res: Response, next: Nex
     const sessions = await sessionService.getUserSessions(req.user.id);
     res.json({
       success: true,
-      data: sessions.map((session) => ({
+      data: sessions.map(session => ({
         sessionId: session.sessionId,
         status: session.status,
         lastActivity: session.lastActivity,

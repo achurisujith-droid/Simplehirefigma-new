@@ -45,15 +45,13 @@ export interface ProfileClassification {
  * Classify candidate profile based on resume analysis
  * EXACT system prompt from elevenlabsgitcopilot/profileClassifier.ts lines 38-82
  */
-export async function classifyProfile(
-  analysis: ResumeAnalysis
-): Promise<ProfileClassification> {
+export async function classifyProfile(analysis: ResumeAnalysis): Promise<ProfileClassification> {
   try {
     const { candidateProfile, workExperience, coreSkills, extractedEntities } = analysis;
 
     // Build context from resume analysis
     const experienceText = workExperience
-      .map((exp) => `${exp.role} at ${exp.company} (${exp.duration})`)
+      .map(exp => `${exp.role} at ${exp.company} (${exp.duration})`)
       .join('\n');
 
     const technicalSkills = coreSkills.technical.join(', ');

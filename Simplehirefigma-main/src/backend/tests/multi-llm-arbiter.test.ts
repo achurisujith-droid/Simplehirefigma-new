@@ -118,9 +118,9 @@ describe('Multi-LLM Arbiter Service', () => {
     it('should apply correct weights (35/20/25/20)', () => {
       const weights = {
         technicalAccuracy: 0.35,
-        communicationClarity: 0.20,
+        communicationClarity: 0.2,
         problemSolving: 0.25,
-        experienceAlignment: 0.20,
+        experienceAlignment: 0.2,
       };
 
       // Calculate weighted score
@@ -141,22 +141,22 @@ describe('Multi-LLM Arbiter Service', () => {
         selectedEvaluationIndex: 0,
         selectedProvider: 'openai',
         rationale: 'GPT-4o provided more detailed analysis',
-        
+
         finalScore: 85,
         categoryScores: mockGPTEvaluation.categoryScores,
-        
+
         strengths: mockGPTEvaluation.strengths,
         improvements: mockGPTEvaluation.areasForImprovement,
         summary: mockGPTEvaluation.summary,
         recommendation: mockGPTEvaluation.recommendation,
-        
+
         confidenceLevel: 'high',
         evaluationAgreement: 'Both evaluations agreed on hire recommendation',
-        
+
         providerResults: [mockGPTEvaluation, mockClaudeEvaluation],
         arbiterSkipped: false,
         arbitrationMethod: 'arbiter_selection',
-        
+
         arbiterProvider: 'openai',
         arbiterModel: 'gpt-4o',
         arbiterLatencyMs: 1500,
@@ -208,7 +208,7 @@ describe('Multi-LLM Arbiter Service', () => {
   describe('Evaluation Recommendations', () => {
     it('should support all recommendation types', () => {
       const validRecommendations = ['strong_hire', 'hire', 'maybe_hire', 'no_hire'];
-      
+
       validRecommendations.forEach(rec => {
         const result: ArbitratedResult = {
           selectedEvaluationIndex: 0,
@@ -235,7 +235,7 @@ describe('Multi-LLM Arbiter Service', () => {
   describe('Confidence Levels', () => {
     it('should support all confidence levels', () => {
       const validConfidenceLevels = ['high', 'medium', 'low'];
-      
+
       validConfidenceLevels.forEach(level => {
         const result: ArbitratedResult = {
           selectedEvaluationIndex: 0,
@@ -292,17 +292,17 @@ describe('Multi-LLM Arbiter Service', () => {
         rationale: 'Single evaluation available - used directly',
         arbiterSkipped: true,
         arbitrationMethod: 'consensus',
-        
+
         finalScore: mockGPTEvaluation.score,
         categoryScores: mockGPTEvaluation.categoryScores,
         strengths: mockGPTEvaluation.strengths,
         improvements: mockGPTEvaluation.areasForImprovement,
         summary: mockGPTEvaluation.summary,
         recommendation: mockGPTEvaluation.recommendation,
-        
+
         confidenceLevel: 'medium',
         evaluationAgreement: 'N/A - single evaluation',
-        
+
         providerResults: [mockGPTEvaluation],
       };
 
@@ -321,17 +321,18 @@ describe('Multi-LLM Arbiter Service', () => {
         rationale: 'GPT-4o provided more comprehensive analysis',
         arbiterSkipped: false,
         arbitrationMethod: 'arbiter_selection',
-        
+
         finalScore: 85,
         categoryScores: mockGPTEvaluation.categoryScores,
         strengths: mockGPTEvaluation.strengths,
         improvements: mockGPTEvaluation.areasForImprovement,
         summary: 'Synthesized feedback from both evaluations',
         recommendation: 'hire',
-        
+
         confidenceLevel: 'high',
-        evaluationAgreement: 'Evaluations agreed on technical competence but differed on overall score',
-        
+        evaluationAgreement:
+          'Evaluations agreed on technical competence but differed on overall score',
+
         providerResults: [mockGPTEvaluation, mockClaudeEvaluation],
         arbiterProvider: 'openai',
         arbiterModel: 'gpt-4o',

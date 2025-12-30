@@ -48,7 +48,11 @@ export class SessionService {
     }
   }
 
-  async updateSession(sessionId: string, updates: Partial<SessionData>, ownerId?: string): Promise<boolean> {
+  async updateSession(
+    sessionId: string,
+    updates: Partial<SessionData>,
+    ownerId?: string
+  ): Promise<boolean> {
     try {
       const session = await this.getSession(sessionId, ownerId);
       if (!session) return false;

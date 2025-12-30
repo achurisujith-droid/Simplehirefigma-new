@@ -1,7 +1,7 @@
 /**
  * Multi-LLM Arbiter Service
  * Implements exact arbiter logic from elevenlabsgitcopilot
- * 
+ *
  * Three LLM calls:
  * 1. GPT-4o evaluation
  * 2. Claude Opus 4.5 evaluation
@@ -66,8 +66,10 @@ const DEFAULT_LLM_CONFIG = {
     ],
   },
   prompts: {
-    evaluationSystem: 'You are an expert interviewer. Evaluate the candidate\'s interview performance based on the provided transcript and resume. Provide detailed scoring and feedback.',
-    arbiterSystem: 'You are a senior hiring manager reviewing evaluations from multiple AI systems. Analyze both evaluations, select the most accurate and fair assessment, provide your rationale, and synthesize the best insights from both.',
+    evaluationSystem:
+      "You are an expert interviewer. Evaluate the candidate's interview performance based on the provided transcript and resume. Provide detailed scoring and feedback.",
+    arbiterSystem:
+      'You are a senior hiring manager reviewing evaluations from multiple AI systems. Analyze both evaluations, select the most accurate and fair assessment, provide your rationale, and synthesize the best insights from both.',
   },
   scoringRubric: {
     categories: {
@@ -77,7 +79,7 @@ const DEFAULT_LLM_CONFIG = {
         scale: { min: 0, max: 10 },
       },
       communicationClarity: {
-        weight: 0.20,
+        weight: 0.2,
         description: 'Clarity and articulation of responses',
         scale: { min: 0, max: 10 },
       },
@@ -87,7 +89,7 @@ const DEFAULT_LLM_CONFIG = {
         scale: { min: 0, max: 10 },
       },
       experienceAlignment: {
-        weight: 0.20,
+        weight: 0.2,
         description: 'Alignment between resume and demonstrated knowledge',
         scale: { min: 0, max: 10 },
       },
@@ -119,9 +121,9 @@ llmConfig = loadLLMConfig();
 
 export interface InterviewData {
   candidateProfile: string;
-  voiceAnswers?: Array<{ question: string; answer: string; }>;
-  mcqAnswers?: Array<{ question: string; selected: string; correct: boolean; }>;
-  codeAnswers?: Array<{ question: string; code: string; language: string; }>;
+  voiceAnswers?: Array<{ question: string; answer: string }>;
+  mcqAnswers?: Array<{ question: string; selected: string; correct: boolean }>;
+  codeAnswers?: Array<{ question: string; code: string; language: string }>;
 }
 
 export interface CategoryScores {
@@ -163,22 +165,22 @@ export interface ArbitratedResult {
   selectedEvaluationIndex: number;
   selectedProvider: string;
   rationale: string;
-  
+
   finalScore: number;
   categoryScores: CategoryScores;
-  
+
   strengths: string[];
   improvements: string[];
   summary: string;
   recommendation: 'strong_hire' | 'hire' | 'maybe_hire' | 'no_hire';
-  
+
   confidenceLevel: 'high' | 'medium' | 'low';
   evaluationAgreement: string;
-  
+
   providerResults: LLMEvaluationResult[];
   arbiterSkipped: boolean;
   arbitrationMethod: 'consensus' | 'arbiter_selection';
-  
+
   arbiterProvider?: string;
   arbiterModel?: string;
   arbiterLatencyMs?: number;
@@ -188,18 +190,27 @@ export interface ArbitratedResult {
 // Prompt Building Functions
 // ============================================================================
 
-function buildEvaluationPrompt(interviewData: InterviewData): Array<{ role: string; content: string }> {
-  const voiceText = interviewData.voiceAnswers
-    ?.map((qa, i) => `Q${i + 1}: ${qa.question}\nA${i + 1}: ${qa.answer}`)
-    .join('\n\n') || 'No voice interview data';
+function buildEvaluationPrompt(
+  interviewData: InterviewData
+): Array<{ role: string; content: string }> {
+  const voiceText =
+    interviewData.voiceAnswers
+      ?.map((qa, i) => `Q${i + 1}: ${qa.question}\nA${i + 1}: ${qa.answer}`)
+      .join('\n\n') || 'No voice interview data';
 
-  const mcqText = interviewData.mcqAnswers
-    ?.map((qa, i) => `Q${i + 1}: ${qa.question}\nSelected: ${qa.selected} ${qa.correct ? '✓' : '✗'}`)
-    .join('\n\n') || 'No MCQ data';
+  const mcqText =
+    interviewData.mcqAnswers
+      ?.map(
+        (qa, i) => `Q${i + 1}: ${qa.question}\nSelected: ${qa.selected} ${qa.correct ? '✓' : '✗'}`
+      )
+      .join('\n\n') || 'No MCQ data';
 
-  const codeText = interviewData.codeAnswers
-    ?.map((qa, i) => `Challenge ${i + 1}: ${qa.question}\nLanguage: ${qa.language}\nCode:\n${qa.code}`)
-    .join('\n\n') || 'No coding challenge data';
+  const codeText =
+    interviewData.codeAnswers
+      ?.map(
+        (qa, i) => `Challenge ${i + 1}: ${qa.question}\nLanguage: ${qa.language}\nCode:\n${qa.code}`
+      )
+      .join('\n\n') || 'No coding challenge data';
 
   return [
     {
@@ -256,17 +267,24 @@ Latency: ${evaluation.latencyMs}ms
     })
     .join('\n\n');
 
-  const voiceText = originalData.voiceAnswers
-    ?.map((qa, i) => `Q${i + 1}: ${qa.question}\nA${i + 1}: ${qa.answer}`)
-    .join('\n\n') || 'No voice interview data';
+  const voiceText =
+    originalData.voiceAnswers
+      ?.map((qa, i) => `Q${i + 1}: ${qa.question}\nA${i + 1}: ${qa.answer}`)
+      .join('\n\n') || 'No voice interview data';
 
-  const mcqText = originalData.mcqAnswers
-    ?.map((qa, i) => `Q${i + 1}: ${qa.question}\nSelected: ${qa.selected} ${qa.correct ? '✓' : '✗'}`)
-    .join('\n\n') || 'No MCQ data';
+  const mcqText =
+    originalData.mcqAnswers
+      ?.map(
+        (qa, i) => `Q${i + 1}: ${qa.question}\nSelected: ${qa.selected} ${qa.correct ? '✓' : '✗'}`
+      )
+      .join('\n\n') || 'No MCQ data';
 
-  const codeText = originalData.codeAnswers
-    ?.map((qa, i) => `Challenge ${i + 1}: ${qa.question}\nLanguage: ${qa.language}\nCode:\n${qa.code}`)
-    .join('\n\n') || 'No coding challenge data';
+  const codeText =
+    originalData.codeAnswers
+      ?.map(
+        (qa, i) => `Challenge ${i + 1}: ${qa.question}\nLanguage: ${qa.language}\nCode:\n${qa.code}`
+      )
+      .join('\n\n') || 'No coding challenge data';
 
   return [
     {
@@ -318,16 +336,14 @@ Please analyze both evaluations and provide your arbiter decision as JSON:
 // LLM Evaluation Functions
 // ============================================================================
 
-async function evaluateWithGPT4o(
-  interviewData: InterviewData
-): Promise<LLMEvaluationResult> {
+async function evaluateWithGPT4o(interviewData: InterviewData): Promise<LLMEvaluationResult> {
   const startTime = Date.now();
-  
+
   try {
     logger.info('Starting GPT-4o evaluation');
-    
+
     const messages = buildEvaluationPrompt(interviewData);
-    
+
     const response = await openai.chat.completions.create({
       model: 'gpt-4o',
       messages: messages as any,
@@ -337,12 +353,12 @@ async function evaluateWithGPT4o(
 
     const latencyMs = Date.now() - startTime;
     const content = response.choices[0]?.message?.content || '';
-    
+
     logger.info(`GPT-4o evaluation completed in ${latencyMs}ms`);
 
     // Parse the JSON response
     const evaluation = safeJsonParse<any>(content);
-    
+
     if (!evaluation || !evaluation.categoryScores) {
       throw new Error('Invalid evaluation format from GPT-4o');
     }
@@ -365,20 +381,18 @@ async function evaluateWithGPT4o(
   }
 }
 
-async function evaluateWithClaudeOpus(
-  interviewData: InterviewData
-): Promise<LLMEvaluationResult> {
+async function evaluateWithClaudeOpus(interviewData: InterviewData): Promise<LLMEvaluationResult> {
   const startTime = Date.now();
-  
+
   try {
     logger.info('Starting Claude Opus 4.5 evaluation');
-    
+
     const messages = buildEvaluationPrompt(interviewData);
-    
+
     // Claude expects messages without system in the array
     const systemMessage = messages.find(m => m.role === 'system')?.content || '';
     const userMessages = messages.filter(m => m.role !== 'system');
-    
+
     const response = await anthropic.messages.create({
       model: 'claude-opus-4-5-20251101',
       max_tokens: llmConfig.providers.anthropic.models['claude-opus-4-5-20251101'].maxTokens,
@@ -392,12 +406,12 @@ async function evaluateWithClaudeOpus(
 
     const latencyMs = Date.now() - startTime;
     const content = response.content[0]?.type === 'text' ? response.content[0].text : '';
-    
+
     logger.info(`Claude Opus evaluation completed in ${latencyMs}ms`);
 
     // Parse the JSON response
     const evaluation = safeJsonParse<any>(content);
-    
+
     if (!evaluation || !evaluation.categoryScores) {
       throw new Error('Invalid evaluation format from Claude Opus');
     }
@@ -437,29 +451,29 @@ async function runArbiter(
       rationale: 'Single evaluation available - used directly',
       arbiterSkipped: true,
       arbitrationMethod: 'consensus',
-      
+
       finalScore: evaluations[0].score,
       categoryScores: evaluations[0].categoryScores,
       strengths: evaluations[0].strengths,
       improvements: evaluations[0].areasForImprovement,
       summary: evaluations[0].summary,
       recommendation: evaluations[0].recommendation,
-      
+
       confidenceLevel: 'medium',
       evaluationAgreement: 'N/A - single evaluation',
-      
+
       providerResults: evaluations,
     };
   }
 
   const startTime = Date.now();
-  
+
   try {
     logger.info('Starting arbiter evaluation');
-    
+
     // Build arbiter prompt comparing both evaluations
     const arbiterPrompt = buildArbiterPrompt(evaluations, originalData);
-    
+
     // Make THIRD LLM call to GPT-4o arbiter
     const arbiterResult = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -470,7 +484,7 @@ async function runArbiter(
 
     const latencyMs = Date.now() - startTime;
     const content = arbiterResult.choices[0]?.message?.content || '';
-    
+
     logger.info(`Arbiter evaluation completed in ${latencyMs}ms`);
 
     // Parse arbiter decision
@@ -485,28 +499,28 @@ async function runArbiter(
       selectedEvaluationIndex: arbiterDecision.selectedEvaluationIndex,
       selectedProvider: arbiterDecision.selectedProvider,
       rationale: arbiterDecision.rationale,
-      
+
       finalScore: arbiterDecision.finalScore,
       categoryScores: arbiterDecision.finalCategoryScores,
       strengths: arbiterDecision.finalStrengths,
       improvements: arbiterDecision.finalAreasForImprovement,
       summary: arbiterDecision.finalSummary,
       recommendation: arbiterDecision.finalRecommendation,
-      
+
       confidenceLevel: arbiterDecision.confidenceLevel,
       evaluationAgreement: arbiterDecision.evaluationAgreement,
-      
+
       providerResults: evaluations,
       arbiterSkipped: false,
       arbitrationMethod: 'arbiter_selection',
-      
+
       arbiterProvider: 'openai',
       arbiterModel: 'gpt-4o',
       arbiterLatencyMs: latencyMs,
     };
   } catch (error) {
     logger.error('Error in arbiter evaluation:', error);
-    
+
     // Fallback: use first evaluation
     logger.warn('Arbiter failed, falling back to first evaluation');
     return {
@@ -515,17 +529,17 @@ async function runArbiter(
       rationale: 'Arbiter failed - using first evaluation as fallback',
       arbiterSkipped: true,
       arbitrationMethod: 'consensus',
-      
+
       finalScore: evaluations[0].score,
       categoryScores: evaluations[0].categoryScores,
       strengths: evaluations[0].strengths,
       improvements: evaluations[0].areasForImprovement,
       summary: evaluations[0].summary,
       recommendation: evaluations[0].recommendation,
-      
+
       confidenceLevel: 'low',
       evaluationAgreement: 'Unknown - arbiter failed',
-      
+
       providerResults: evaluations,
     };
   }
@@ -550,10 +564,10 @@ export async function evaluateWithMultiLLM(
 
     // Run evaluations in parallel with graceful error handling
     const evaluationPromises: Promise<LLMEvaluationResult>[] = [];
-    
+
     // Always run GPT-4o
     evaluationPromises.push(evaluateWithGPT4o(interviewData));
-    
+
     // Run Claude Opus if configured
     if (config.multiLLM.providers.includes('claude-opus-4-5-20251101')) {
       evaluationPromises.push(evaluateWithClaudeOpus(interviewData));
@@ -561,30 +575,31 @@ export async function evaluateWithMultiLLM(
 
     // Wait for all evaluations to complete, handling partial failures
     const results = await Promise.allSettled(evaluationPromises);
-    
+
     // Filter successful evaluations
     const evaluations = results
-      .filter((result): result is PromiseFulfilledResult<LLMEvaluationResult> => 
-        result.status === 'fulfilled'
+      .filter(
+        (result): result is PromiseFulfilledResult<LLMEvaluationResult> =>
+          result.status === 'fulfilled'
       )
       .map(result => result.value);
-    
+
     // Log any failures
     const failures = results.filter(result => result.status === 'rejected');
     if (failures.length > 0) {
       logger.warn(`${failures.length} evaluation(s) failed:`, failures);
     }
-    
+
     // Ensure we have at least one successful evaluation
     if (evaluations.length === 0) {
       throw new Error('All LLM evaluations failed');
     }
-    
+
     logger.info(`Completed ${evaluations.length} evaluations, running arbiter`);
 
     // Run arbiter to select best evaluation
     const result = await runArbiter(evaluations, interviewData);
-    
+
     logger.info(
       `Multi-LLM evaluation complete. Selected: ${result.selectedProvider}, Score: ${result.finalScore}`
     );

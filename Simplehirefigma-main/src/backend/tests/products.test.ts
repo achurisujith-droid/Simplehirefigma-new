@@ -15,13 +15,11 @@ describe('Products API', () => {
     await prisma.user.deleteMany({});
 
     // Create user
-    const response = await request(app)
-      .post('/api/auth/signup')
-      .send({
-        email: 'user@example.com',
-        password: 'Password123!',
-        name: 'Test User',
-      });
+    const response = await request(app).post('/api/auth/signup').send({
+      email: 'user@example.com',
+      password: 'Password123!',
+      name: 'Test User',
+    });
 
     authToken = response.body.data.token;
 
@@ -93,9 +91,7 @@ describe('Products API', () => {
     });
 
     it('should require authentication', async () => {
-      await request(app)
-        .get('/api/products')
-        .expect(401);
+      await request(app).get('/api/products').expect(401);
     });
   });
 

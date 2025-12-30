@@ -39,16 +39,14 @@ function determineMCQDifficulty(yearsExperience: number): MCQDifficulty {
 /**
  * Get topic list based on role category and skills
  */
-function getTopicsForRole(
-  classification: ProfileClassification
-): string[] {
+function getTopicsForRole(classification: ProfileClassification): string[] {
   const { roleCategory, keySkills, primaryLanguages, primaryFrameworks } = classification;
-  
+
   const topics: string[] = [];
-  
+
   // Add primary skills
   topics.push(...keySkills.slice(0, 3));
-  
+
   // Add languages and frameworks
   if (primaryLanguages.length > 0) {
     topics.push(...primaryLanguages.slice(0, 2));
@@ -56,7 +54,7 @@ function getTopicsForRole(
   if (primaryFrameworks.length > 0) {
     topics.push(...primaryFrameworks.slice(0, 2));
   }
-  
+
   // Add role-specific topics
   const roleTopics: Record<RoleCategory, string[]> = {
     software_dev: ['algorithms', 'data structures', 'software design patterns', 'web development'],
@@ -65,16 +63,26 @@ function getTopicsForRole(
     data_ml: ['machine learning', 'data analysis', 'SQL', 'statistics', 'data visualization'],
     devops_sre: ['containerization', 'kubernetes', 'CI/CD', 'monitoring', 'cloud platforms'],
     analytics_bi: ['SQL', 'data modeling', 'business intelligence tools', 'reporting'],
-    product_manager: ['product strategy', 'agile methodologies', 'user research', 'roadmap planning'],
-    business_analyst: ['requirements gathering', 'process analysis', 'data analysis', 'documentation'],
+    product_manager: [
+      'product strategy',
+      'agile methodologies',
+      'user research',
+      'roadmap planning',
+    ],
+    business_analyst: [
+      'requirements gathering',
+      'process analysis',
+      'data analysis',
+      'documentation',
+    ],
     support_infra: ['troubleshooting', 'system administration', 'networking', 'customer support'],
     non_tech: ['communication', 'project management', 'stakeholder management'],
     mixed_unclear: ['problem solving', 'teamwork', 'analytical thinking'],
   };
-  
+
   const categoryTopics = roleTopics[roleCategory] || [];
   topics.push(...categoryTopics);
-  
+
   // Return unique topics, limit to 8
   return [...new Set(topics)].slice(0, 8);
 }
@@ -88,24 +96,19 @@ function getFallbackQuestions(
   count: number
 ): MCQQuestion[] {
   const fallbackQuestions: MCQQuestion[] = [];
-  
+
   for (let i = 0; i < count; i++) {
     const topic = topics[i % topics.length];
     fallbackQuestions.push({
       id: uuidv4(),
       questionText: `What is your experience level with ${topic}?`,
-      options: [
-        'No experience',
-        'Basic knowledge',
-        'Intermediate level',
-        'Expert level'
-      ],
+      options: ['No experience', 'Basic knowledge', 'Intermediate level', 'Expert level'],
       correctAnswerIndex: 2,
       skillCategory: topic,
       difficulty,
     });
   }
-  
+
   return fallbackQuestions;
 }
 
@@ -121,11 +124,11 @@ export async function generateMCQQuestions(
   try {
     const mcqDifficulty = difficulty || determineMCQDifficulty(classification.yearsExperience);
     const topics = customTopics || getTopicsForRole(classification);
-    
+
     logger.info(
       `Generating ${questionCount} MCQ questions at ${mcqDifficulty} level for topics: ${topics.join(', ')}`
     );
-    
+
     // Build system prompt for MCQ generation
     const systemPrompt = `You are an expert technical interviewer creating multiple choice questions.
 
@@ -186,12 +189,16 @@ Return ONLY valid JSON array:
     const questions: MCQQuestion[] = questionsData.map((q, index) => ({
       id: uuidv4(),
       questionText: q.questionText || `Question ${index + 1}`,
-      options: Array.isArray(q.options) && q.options.length === 4 
-        ? q.options 
-        : ['Option A', 'Option B', 'Option C', 'Option D'],
-      correctAnswerIndex: typeof q.correctAnswerIndex === 'number' && q.correctAnswerIndex >= 0 && q.correctAnswerIndex <= 3
-        ? q.correctAnswerIndex
-        : 0,
+      options:
+        Array.isArray(q.options) && q.options.length === 4
+          ? q.options
+          : ['Option A', 'Option B', 'Option C', 'Option D'],
+      correctAnswerIndex:
+        typeof q.correctAnswerIndex === 'number' &&
+        q.correctAnswerIndex >= 0 &&
+        q.correctAnswerIndex <= 3
+          ? q.correctAnswerIndex
+          : 0,
       skillCategory: q.skillCategory || topics[index % topics.length],
       difficulty: mcqDifficulty,
       explanation: q.explanation,

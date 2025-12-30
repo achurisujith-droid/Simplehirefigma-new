@@ -44,21 +44,21 @@ export async function evaluateMCQAnswer(
 ): Promise<MCQEvaluation> {
   try {
     const isCorrect = selectedAnswerIndex === correctAnswerIndex;
-    
+
     // Generate feedback
     const correctOption = options[correctAnswerIndex];
     const selectedOption = options[selectedAnswerIndex];
-    
+
     let feedback: string;
     if (isCorrect) {
       feedback = `Correct! ${correctOption} is the right answer.`;
     } else {
       feedback = `Incorrect. You selected: ${selectedOption}. The correct answer is: ${correctOption}.`;
     }
-    
+
     // Log for analytics (questionText is used here for future enhancements)
     logger.debug(`MCQ evaluation for question: ${questionText.substring(0, 50)}...`);
-    
+
     return {
       isCorrect,
       feedback,
@@ -85,7 +85,7 @@ export async function evaluateCodeAnswer(
 ): Promise<CodeEvaluation> {
   try {
     logger.info(`Evaluating code submission for language: ${language}`);
-    
+
     // Build evaluation prompt
     const systemPrompt = `You are an expert code reviewer evaluating a candidate's coding challenge submission.
 
@@ -178,13 +178,10 @@ Evaluate this code now.`;
  */
 export function calculateCodeScore(evaluation: CodeEvaluation): number {
   const { correctness, problemSolving, codeQuality, completeness } = evaluation.dimensions;
-  
+
   const weightedScore =
-    correctness * 0.4 +
-    problemSolving * 0.3 +
-    codeQuality * 0.2 +
-    completeness * 0.1;
-  
+    correctness * 0.4 + problemSolving * 0.3 + codeQuality * 0.2 + completeness * 0.1;
+
   // Convert to 0-100 scale
   return Math.round((weightedScore / 10) * 100);
 }

@@ -43,7 +43,7 @@ export class ProctoringEngine {
    */
   removeRule(ruleId: string): boolean {
     const initialLength = this.rules.length;
-    this.rules = this.rules.filter((rule) => rule.id !== ruleId);
+    this.rules = this.rules.filter(rule => rule.id !== ruleId);
     const removed = this.rules.length < initialLength;
 
     if (removed) {
@@ -57,7 +57,7 @@ export class ProctoringEngine {
    * Enable a rule by ID
    */
   enableRule(ruleId: string): boolean {
-    const rule = this.rules.find((r) => r.id === ruleId);
+    const rule = this.rules.find(r => r.id === ruleId);
     if (rule) {
       rule.enable();
       logger.info(`Enabled rule: ${ruleId}`);
@@ -70,7 +70,7 @@ export class ProctoringEngine {
    * Disable a rule by ID
    */
   disableRule(ruleId: string): boolean {
-    const rule = this.rules.find((r) => r.id === ruleId);
+    const rule = this.rules.find(r => r.id === ruleId);
     if (rule) {
       rule.disable();
       logger.info(`Disabled rule: ${ruleId}`);
@@ -93,7 +93,7 @@ export class ProctoringEngine {
    */
   async runChecks(context: RuleContext): Promise<ProctoringResult> {
     const violations: RuleViolation[] = [];
-    const enabledRules = this.rules.filter((rule) => rule.enabled);
+    const enabledRules = this.rules.filter(rule => rule.enabled);
 
     logger.info(`Running ${enabledRules.length} enabled proctoring rules`);
 
@@ -105,9 +105,7 @@ export class ProctoringEngine {
 
         if (violation) {
           violations.push(violation);
-          logger.warn(
-            `Rule violation detected: ${rule.name} - ${violation.message}`
-          );
+          logger.warn(`Rule violation detected: ${rule.name} - ${violation.message}`);
         }
       } catch (error) {
         logger.error(`Error executing rule ${rule.id}:`, error);

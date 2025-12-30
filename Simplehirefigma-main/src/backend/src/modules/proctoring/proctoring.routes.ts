@@ -15,7 +15,7 @@ router.use(authenticate);
 /**
  * POST /api/proctoring/verify-identity
  * Verify candidate identity by comparing face with ID card
- * 
+ *
  * Body:
  * - interviewId: Interview ID
  * - referenceImageBase64: Base64 encoded ID card image
@@ -26,7 +26,7 @@ router.post('/verify-identity', proctoringController.verifyIdentity);
 /**
  * POST /api/proctoring/monitor
  * Monitor interview session for proctoring violations
- * 
+ *
  * Body:
  * - interviewId: Interview ID
  * - referenceImageBase64: Base64 encoded reference image

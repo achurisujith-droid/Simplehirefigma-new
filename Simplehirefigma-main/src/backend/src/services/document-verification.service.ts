@@ -106,21 +106,18 @@ export class DocumentVerificationService {
       return extractedData;
     } catch (error: any) {
       logger.error('Error extracting ID data:', error);
-      
+
       if (error.code === 'InvalidParameterException') {
         throw new AppError('Invalid document format', 400, 'INVALID_DOCUMENT');
       }
-      
+
       if (error.code === 'ProvisionedThroughputExceededException') {
         throw new AppError('Service busy, please try again', 503, 'SERVICE_BUSY');
       }
 
-      throw new AppError(
-        'Failed to extract ID data',
-        500,
-        'EXTRACTION_ERROR',
-        { error: error.message }
-      );
+      throw new AppError('Failed to extract ID data', 500, 'EXTRACTION_ERROR', {
+        error: error.message,
+      });
     }
   }
 
@@ -188,12 +185,9 @@ export class DocumentVerificationService {
         throw new AppError('Invalid image format or no face detected', 400, 'INVALID_IMAGE');
       }
 
-      throw new AppError(
-        'Failed to compare faces',
-        500,
-        'COMPARISON_ERROR',
-        { error: error.message }
-      );
+      throw new AppError('Failed to compare faces', 500, 'COMPARISON_ERROR', {
+        error: error.message,
+      });
     }
   }
 
@@ -251,7 +245,7 @@ export class DocumentVerificationService {
       const recommendations: string[] = [];
 
       // Check for sufficient text detected
-      const textBlocks = blocks.filter((b) => b.BlockType === 'LINE');
+      const textBlocks = blocks.filter(b => b.BlockType === 'LINE');
       if (textBlocks.length < 5) {
         issues.push('Insufficient text detected');
         recommendations.push('Ensure document is clearly visible and well-lit');

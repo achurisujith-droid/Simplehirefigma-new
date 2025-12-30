@@ -22,9 +22,7 @@ describe('Reference API', () => {
     await prisma.user.deleteMany({});
 
     // Create and login user
-    const response = await request(app)
-      .post('/api/auth/signup')
-      .send(testUser);
+    const response = await request(app).post('/api/auth/signup').send(testUser);
 
     authToken = response.body.data.token;
     userId = response.body.data.user.id;
@@ -118,17 +116,14 @@ describe('Reference API', () => {
   describe('GET /api/references', () => {
     beforeEach(async () => {
       // Create some references
-      await request(app)
-        .post('/api/references')
-        .set('Authorization', `Bearer ${authToken}`)
-        .send({
-          name: 'Reference 1',
-          email: 'ref1@company.com',
-          phone: '+1234567890',
-          company: 'Company',
-          position: 'Position',
-          relationship: 'Manager',
-        });
+      await request(app).post('/api/references').set('Authorization', `Bearer ${authToken}`).send({
+        name: 'Reference 1',
+        email: 'ref1@company.com',
+        phone: '+1234567890',
+        company: 'Company',
+        position: 'Position',
+        relationship: 'Manager',
+      });
     });
 
     it('should return all user references', async () => {
@@ -143,9 +138,7 @@ describe('Reference API', () => {
     });
 
     it('should require authentication', async () => {
-      await request(app)
-        .get('/api/references')
-        .expect(401);
+      await request(app).get('/api/references').expect(401);
     });
   });
 
@@ -187,13 +180,11 @@ describe('Reference API', () => {
 
     it('should not allow updating other users references', async () => {
       // Create another user
-      const otherUser = await request(app)
-        .post('/api/auth/signup')
-        .send({
-          email: 'other@example.com',
-          password: 'Password123!',
-          name: 'Other User',
-        });
+      const otherUser = await request(app).post('/api/auth/signup').send({
+        email: 'other@example.com',
+        password: 'Password123!',
+        name: 'Other User',
+      });
 
       const response = await request(app)
         .patch(`/api/references/${referenceId}`)

@@ -11,7 +11,7 @@ import { AppError } from '../utils/errors';
 import logger from '../config/logger';
 
 const router = Router();
-const upload = multer({ 
+const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: config.fileUpload.maxFileSize },
 });
@@ -20,110 +20,122 @@ const upload = multer({
 router.use(authenticate);
 
 // Upload ID document
-router.post('/id', upload.single('file'), async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    if (!req.file) {
-      throw new AppError('File is required', 400, 'VALIDATION_ERROR');
+router.post(
+  '/id',
+  upload.single('file'),
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.file) {
+        throw new AppError('File is required', 400, 'VALIDATION_ERROR');
+      }
+
+      const { documentType } = req.body;
+      const result = await uploadFile(req.file, 'id-documents');
+
+      // Update or create ID verification record
+      await prisma.iDVerification.upsert({
+        where: { userId: req.user!.id },
+        create: {
+          userId: req.user!.id,
+          idDocumentUrl: result.url,
+          idDocumentType: documentType,
+          status: 'in-progress',
+        },
+        update: {
+          idDocumentUrl: result.url,
+          idDocumentType: documentType,
+        },
+      });
+
+      res.json({
+        success: true,
+        data: {
+          documentUrl: result.url,
+          documentId: result.key,
+        },
+      });
+    } catch (error) {
+      next(error);
     }
-
-    const { documentType } = req.body;
-    const result = await uploadFile(req.file, 'id-documents');
-
-    // Update or create ID verification record
-    await prisma.iDVerification.upsert({
-      where: { userId: req.user!.id },
-      create: {
-        userId: req.user!.id,
-        idDocumentUrl: result.url,
-        idDocumentType: documentType,
-        status: 'in-progress',
-      },
-      update: {
-        idDocumentUrl: result.url,
-        idDocumentType: documentType,
-      },
-    });
-
-    res.json({
-      success: true,
-      data: {
-        documentUrl: result.url,
-        documentId: result.key,
-      },
-    });
-  } catch (error) {
-    next(error);
   }
-});
+);
 
 // Upload Visa document
-router.post('/visa', upload.single('file'), async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    if (!req.file) {
-      throw new AppError('File is required', 400, 'VALIDATION_ERROR');
+router.post(
+  '/visa',
+  upload.single('file'),
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.file) {
+        throw new AppError('File is required', 400, 'VALIDATION_ERROR');
+      }
+
+      const { documentType } = req.body;
+      const result = await uploadFile(req.file, 'visa-documents');
+
+      await prisma.iDVerification.upsert({
+        where: { userId: req.user!.id },
+        create: {
+          userId: req.user!.id,
+          visaDocumentUrl: result.url,
+          visaDocumentType: documentType,
+          status: 'in-progress',
+        },
+        update: {
+          visaDocumentUrl: result.url,
+          visaDocumentType: documentType,
+        },
+      });
+
+      res.json({
+        success: true,
+        data: {
+          documentUrl: result.url,
+          documentId: result.key,
+        },
+      });
+    } catch (error) {
+      next(error);
     }
-
-    const { documentType } = req.body;
-    const result = await uploadFile(req.file, 'visa-documents');
-
-    await prisma.iDVerification.upsert({
-      where: { userId: req.user!.id },
-      create: {
-        userId: req.user!.id,
-        visaDocumentUrl: result.url,
-        visaDocumentType: documentType,
-        status: 'in-progress',
-      },
-      update: {
-        visaDocumentUrl: result.url,
-        visaDocumentType: documentType,
-      },
-    });
-
-    res.json({
-      success: true,
-      data: {
-        documentUrl: result.url,
-        documentId: result.key,
-      },
-    });
-  } catch (error) {
-    next(error);
   }
-});
+);
 
 // Upload selfie
-router.post('/selfie', upload.single('file'), async (req: AuthRequest, res: Response, next: NextFunction) => {
-  try {
-    if (!req.file) {
-      throw new AppError('File is required', 400, 'VALIDATION_ERROR');
+router.post(
+  '/selfie',
+  upload.single('file'),
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      if (!req.file) {
+        throw new AppError('File is required', 400, 'VALIDATION_ERROR');
+      }
+
+      const result = await uploadFile(req.file, 'selfies');
+
+      await prisma.iDVerification.upsert({
+        where: { userId: req.user!.id },
+        create: {
+          userId: req.user!.id,
+          selfieUrl: result.url,
+          status: 'in-progress',
+        },
+        update: {
+          selfieUrl: result.url,
+        },
+      });
+
+      res.json({
+        success: true,
+        data: {
+          selfieUrl: result.url,
+          selfieId: result.key,
+        },
+      });
+    } catch (error) {
+      next(error);
     }
-
-    const result = await uploadFile(req.file, 'selfies');
-
-    await prisma.iDVerification.upsert({
-      where: { userId: req.user!.id },
-      create: {
-        userId: req.user!.id,
-        selfieUrl: result.url,
-        status: 'in-progress',
-      },
-      update: {
-        selfieUrl: result.url,
-      },
-    });
-
-    res.json({
-      success: true,
-      data: {
-        selfieUrl: result.url,
-        selfieId: result.key,
-      },
-    });
-  } catch (error) {
-    next(error);
   }
-});
+);
 
 // Submit verification
 router.post('/submit', async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -167,24 +179,26 @@ router.post('/submit', async (req: AuthRequest, res: Response, next: NextFunctio
       data: {
         status: verificationData?.success ? 'verified' : 'pending',
         submittedAt: new Date(),
-        reviewNotes: verificationData ? JSON.stringify({
-          aiVerification: true,
-          score: verificationData.overallScore,
-          issues: verificationData.issues,
-          idData: verificationData.idData,
-          faceMatch: {
-            match: verificationData.faceMatch.match,
-            similarity: verificationData.faceMatch.similarity,
-          },
-        }) : null,
+        reviewNotes: verificationData
+          ? JSON.stringify({
+              aiVerification: true,
+              score: verificationData.overallScore,
+              issues: verificationData.issues,
+              idData: verificationData.idData,
+              faceMatch: {
+                match: verificationData.faceMatch.match,
+                similarity: verificationData.faceMatch.similarity,
+              },
+            })
+          : null,
       },
     });
 
     // Update user data status
     await prisma.userData.update({
       where: { userId: req.user!.id },
-      data: { 
-        idVerificationStatus: verificationData?.success ? 'verified' : 'pending' 
+      data: {
+        idVerificationStatus: verificationData?.success ? 'verified' : 'pending',
       },
     });
 

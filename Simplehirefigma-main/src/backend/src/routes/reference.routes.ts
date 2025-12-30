@@ -172,9 +172,11 @@ router.get('/summary', async (req: AuthRequest, res: Response, next: NextFunctio
 
     const summary = {
       totalReferences: references.length,
-      responsesReceived: references.filter((r) => r.status === 'response-received' || r.status === 'verified').length,
-      verified: references.filter((r) => r.status === 'verified').length,
-      pending: references.filter((r) => r.status === 'email-sent' || r.status === 'pending').length,
+      responsesReceived: references.filter(
+        r => r.status === 'response-received' || r.status === 'verified'
+      ).length,
+      verified: references.filter(r => r.status === 'verified').length,
+      pending: references.filter(r => r.status === 'email-sent' || r.status === 'pending').length,
     };
 
     res.json({

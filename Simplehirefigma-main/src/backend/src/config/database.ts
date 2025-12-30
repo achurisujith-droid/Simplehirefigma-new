@@ -23,8 +23,11 @@ export async function testDatabaseConnection(
       logger.info('✓ Database connection successful');
       return true;
     } catch (error) {
-      logger.warn(`Database connection attempt ${attempt} failed:`, error instanceof Error ? error.message : error);
-      
+      logger.warn(
+        `Database connection attempt ${attempt} failed:`,
+        error instanceof Error ? error.message : error
+      );
+
       if (attempt < maxRetries) {
         logger.info(`Retrying in ${retryDelay}ms...`);
         await new Promise(resolve => setTimeout(resolve, retryDelay));

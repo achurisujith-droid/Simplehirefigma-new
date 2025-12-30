@@ -69,7 +69,9 @@ export async function compareFaces(
     const similarity = bestMatch.Similarity || 0;
     const confidence = bestMatch.Face?.Confidence || 0;
 
-    logger.info(`Face match result: similarity=${similarity.toFixed(2)}%, confidence=${confidence.toFixed(2)}%`);
+    logger.info(
+      `Face match result: similarity=${similarity.toFixed(2)}%, confidence=${confidence.toFixed(2)}%`
+    );
 
     return {
       match: similarity >= 80, // 80% threshold for match

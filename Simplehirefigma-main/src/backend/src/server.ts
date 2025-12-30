@@ -76,7 +76,7 @@ app.get('/health', async (req, res) => {
         multiLLM: config.multiLLM.enabled,
         storage: !!(config.aws.accessKeyId && config.aws.s3Bucket),
         payments: !!config.stripe.secretKey,
-        email: !!(config.email.sendgridApiKey),
+        email: !!config.email.sendgridApiKey,
       },
     };
 
@@ -87,6 +87,9 @@ app.get('/health', async (req, res) => {
     // Return 503 if database is not healthy (critical service)
     if (!dbHealthy) {
       logger.warn('Health check: Database is not healthy');
+      logger.warn(
+        'Verify DATABASE_URL is set correctly and PostgreSQL is accessible'
+      );
       return res.status(503).json({
         success: false,
         message: 'Service degraded - database unavailable',
@@ -154,7 +157,7 @@ function logServerStartup(): void {
 async function verifyDatabaseConnection(): Promise<void> {
   logger.info('Checking database connectivity...');
   const dbConnected = await testDatabaseConnection(10, 3000); // 10 retries, 3s delay
-  
+
   if (!dbConnected) {
     logger.error('Failed to establish database connection. Server will not start.');
     logger.error('Please ensure DATABASE_URL is correct and PostgreSQL is accessible.');
@@ -181,7 +184,7 @@ function startHttpServer(): any {
     logger.info('Server is ready to accept requests');
     logger.info('='.repeat(60));
   });
-  
+
   return server;
 }
 
@@ -191,13 +194,13 @@ function startHttpServer(): any {
 function setupGracefulShutdown(server: any): void {
   const gracefulShutdown = async (signal: string) => {
     logger.info(`\n${signal} received. Starting graceful shutdown...`);
-    
+
     server.close(async () => {
       logger.info('HTTP server closed');
-      
+
       // Disconnect from database
       await disconnectDatabase();
-      
+
       logger.info('Graceful shutdown complete');
       process.exit(0);
     });

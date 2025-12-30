@@ -30,7 +30,7 @@ export const errorHandler = (
   // Handle Prisma errors
   if (err.name === 'PrismaClientKnownRequestError') {
     const prismaError = err as any;
-    
+
     if (prismaError.code === 'P2002') {
       return res.status(409).json({
         success: false,
@@ -60,9 +60,7 @@ export const errorHandler = (
   // Default error response
   res.status(500).json({
     success: false,
-    error: config.nodeEnv === 'production' 
-      ? 'Internal server error' 
-      : err.message,
+    error: config.nodeEnv === 'production' ? 'Internal server error' : err.message,
     code: 'INTERNAL_SERVER_ERROR',
     ...(config.nodeEnv !== 'production' && { stack: err.stack }),
   });

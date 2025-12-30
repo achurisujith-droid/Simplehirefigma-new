@@ -1,3 +1,8 @@
+# Railway deployment configuration
+# Note: This uses NIXPACKS builder for automatic deployment
+# The Dockerfile in the repository root is available for optional Docker-based deployments
+# but is not used by Railway unless explicitly configured
+
 [build]
 builder = "NIXPACKS"
 buildCommand = "rm -rf node_modules dist .npm .cache && npm cache clean --force && npm run railway:build"

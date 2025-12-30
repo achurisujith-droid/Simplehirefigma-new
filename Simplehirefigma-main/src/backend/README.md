@@ -249,9 +249,53 @@ AWS_S3_BUCKET=simplehire-dev
 
 ### Health Check
 
+The health check endpoint monitors the status of critical services:
+
 ```bash
 curl http://localhost:3000/health
 ```
+
+**Expected Response (Healthy):**
+```json
+{
+  "success": true,
+  "message": "Simplehire API is running",
+  "timestamp": "2024-01-01T00:00:00.000Z",
+  "environment": "development",
+  "version": "1.0.0",
+  "uptime": 123.45,
+  "services": {
+    "database": true,
+    "multiLLM": false,
+    "storage": false,
+    "payments": false,
+    "email": false
+  }
+}
+```
+
+**Response (Database Unavailable) - Returns 503:**
+```json
+{
+  "success": false,
+  "message": "Service degraded - database unavailable",
+  "timestamp": "2024-01-01T00:00:00.000Z",
+  "services": {
+    "database": false,
+    "multiLLM": false,
+    "storage": false,
+    "payments": false,
+    "email": false
+  }
+}
+```
+
+**Troubleshooting 503 Errors:**
+- Verify `DATABASE_URL` is set correctly in `.env`
+- Ensure PostgreSQL is running and accessible
+- Check database credentials are valid
+- Verify network connectivity to database host
+- Review logs for detailed error messages
 
 ### Test Authentication
 

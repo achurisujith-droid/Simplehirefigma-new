@@ -87,6 +87,9 @@ app.get('/health', async (req, res) => {
     // Return 503 if database is not healthy (critical service)
     if (!dbHealthy) {
       logger.warn('Health check: Database is not healthy');
+      logger.warn(
+        'Verify DATABASE_URL is set correctly and PostgreSQL is accessible'
+      );
       return res.status(503).json({
         success: false,
         message: 'Service degraded - database unavailable',

@@ -1,5 +1,17 @@
 node_modules
 dist
+npm-debug.log
+.npm
+.git
+.gitignore
+*.md
+.env
+.DS_Store
+coverage
+.vscode
+.idea
+*.test.ts
+__tests__
 .env
 .env.local
 .env.*.local

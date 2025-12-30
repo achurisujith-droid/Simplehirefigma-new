@@ -18,7 +18,7 @@ export async function verifyFileSignature(
     await fileHandle.close();
 
     // Dynamic import for ESM module
-    let detectedType = null;
+    let detectedType: { mime: string; ext: string } | null | undefined = null;
     try {
       const { fileTypeFromFile } = await import('file-type');
       detectedType = await fileTypeFromFile(filePath);
@@ -48,7 +48,7 @@ export async function verifyFileSignature(
         buffer.slice(0, 4).equals(Buffer.from(MAGIC_BYTES.docx));
     } else if (normalizedExt === 'doc') {
       isValid =
-        detectedType?.mime === 'application/msword' ||
+        (detectedType?.mime === 'application/msword') ||
         buffer.slice(0, 4).equals(Buffer.from(MAGIC_BYTES.doc));
     }
 

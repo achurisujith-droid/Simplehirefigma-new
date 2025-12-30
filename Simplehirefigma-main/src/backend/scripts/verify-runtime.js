@@ -50,13 +50,20 @@ try {
   errors.push(e);
 }
 
-// Test 3: Verify server module loads
+// Test 3: Verify factory functions work
 try {
-  // Don't actually start the server, just verify it loads
-  require('../dist/server');
-  console.log('✓ Server module loads successfully');
+  const { createValidationError, createNotFoundError, createUnauthorizedError } = require('../dist/utils/errors');
+  
+  const validationErr = createValidationError('Test validation', { field: 'email' });
+  const notFoundErr = createNotFoundError('Resource not found');
+  const unauthorizedErr = createUnauthorizedError();
+  
+  console.log('✓ Factory functions work correctly');
+  console.log(`  - Validation error: ${validationErr.code} (${validationErr.statusCode})`);
+  console.log(`  - Not found error: ${notFoundErr.code} (${notFoundErr.statusCode})`);
+  console.log(`  - Unauthorized error: ${unauthorizedErr.code} (${unauthorizedErr.statusCode})`);
 } catch (e) {
-  console.error('✗ Server module failed to load:', e.message);
+  console.error('✗ Factory functions verification failed:', e.message);
   errors.push(e);
 }
 

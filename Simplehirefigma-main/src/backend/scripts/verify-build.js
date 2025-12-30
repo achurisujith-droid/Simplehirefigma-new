@@ -18,7 +18,8 @@ if (!fs.existsSync(errorsPath)) {
 
 const errorsContent = fs.readFileSync(errorsPath, 'utf8');
 
-if (!errorsContent.includes('class AppError extends Error')) {
+// Check for AppError class in compiled output (it will be compiled to ES5/ES6 class syntax)
+if (!errorsContent.includes('AppError') || !errorsContent.includes('BaseError')) {
   console.error('❌ ERROR: AppError class not properly compiled!');
   console.log('Content preview:', errorsContent.substring(0, 500));
   process.exit(1);

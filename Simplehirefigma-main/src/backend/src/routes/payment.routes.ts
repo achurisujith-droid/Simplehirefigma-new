@@ -10,7 +10,7 @@ import prisma from '../config/database';
 require('dotenv').config();
 
 const router = Router();
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-02-24.acacia' });
+const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-02-24.acacia' }) : new Stripe('sk_test_placeholder', { apiVersion: '2025-02-24.acacia' });
 
 // Add warning when running in development with placeholder key
 if (process.env.NODE_ENV !== 'production' && process.env.STRIPE_SECRET_KEY === 'sk_test_placeholder') {

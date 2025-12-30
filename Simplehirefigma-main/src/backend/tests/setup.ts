@@ -9,8 +9,9 @@ const prisma = new PrismaClient();
 
 // Set test environment
 process.env.NODE_ENV = 'test';
-process.env.JWT_SECRET = 'test-jwt-secret-for-testing-only';
-process.env.REFRESH_TOKEN_SECRET = 'test-refresh-secret-for-testing-only';
+process.env.JWT_SECRET = 'test-jwt-secret-for-testing-only-minimum-32-chars';
+process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-for-testing-only-minimum-32-chars';
+process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://test:test@localhost:5432/simplehire_test';
 
 // Clean up database before all tests
 beforeAll(async () => {

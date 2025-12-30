@@ -129,71 +129,94 @@ app.use(errorHandler);
 // Initialize application and start server
 async function startServer() {
   try {
-    logger.info('='.repeat(60));
-    logger.info('🚀 Starting Simplehire Backend Server...');
-    logger.info('='.repeat(60));
-
-    // Test database connection before starting server
-    logger.info('Checking database connectivity...');
-    const dbConnected = await testDatabaseConnection(10, 3000); // 10 retries, 3s delay
-    
-    if (!dbConnected) {
-      logger.error('Failed to establish database connection. Server will not start.');
-      logger.error('Please ensure DATABASE_URL is correct and PostgreSQL is accessible.');
-      process.exit(1);
-    }
-
-    // Start HTTP server
-    const PORT = config.port;
-    const server = app.listen(PORT, () => {
-      logger.info('='.repeat(60));
-      logger.info('✓ Simplehire Backend Server Started Successfully');
-      logger.info('='.repeat(60));
-      logger.info(`📍 Server running on port ${PORT}`);
-      logger.info(`📝 Environment: ${config.nodeEnv}`);
-      logger.info(`🌐 Frontend URL: ${config.frontendUrl}`);
-      logger.info(`🔗 Health Check: http://localhost:${PORT}/health`);
-      logger.info(`🔒 JWT Authentication: Configured`);
-      logger.info(`💾 Database: Connected and ready`);
-      logger.info('='.repeat(60));
-      logger.info('Server is ready to accept requests');
-      logger.info('='.repeat(60));
-    });
-
-    // Graceful shutdown
-    const gracefulShutdown = async (signal: string) => {
-      logger.info(`\n${signal} received. Starting graceful shutdown...`);
-      
-      server.close(async () => {
-        logger.info('HTTP server closed');
-        
-        // Disconnect from database
-        await disconnectDatabase();
-        
-        logger.info('Graceful shutdown complete');
-        process.exit(0);
-      });
-
-      // Force shutdown after 10 seconds
-      setTimeout(() => {
-        logger.error('Forced shutdown after timeout');
-        process.exit(1);
-      }, 10000);
-    };
-
-    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-
-    // Handle unhandled rejections
-    process.on('unhandledRejection', (err: Error) => {
-      logger.error('Unhandled Rejection:', err);
-      process.exit(1);
-    });
-
+    logServerStartup();
+    await verifyDatabaseConnection();
+    const server = startHttpServer();
+    setupGracefulShutdown(server);
   } catch (error) {
     logger.error('Failed to start server:', error);
     process.exit(1);
   }
+}
+
+/**
+ * Log server startup banner
+ */
+function logServerStartup(): void {
+  logger.info('='.repeat(60));
+  logger.info('🚀 Starting Simplehire Backend Server...');
+  logger.info('='.repeat(60));
+}
+
+/**
+ * Verify database connection with retries before starting server
+ */
+async function verifyDatabaseConnection(): Promise<void> {
+  logger.info('Checking database connectivity...');
+  const dbConnected = await testDatabaseConnection(10, 3000); // 10 retries, 3s delay
+  
+  if (!dbConnected) {
+    logger.error('Failed to establish database connection. Server will not start.');
+    logger.error('Please ensure DATABASE_URL is correct and PostgreSQL is accessible.');
+    throw new Error('Database connection failed');
+  }
+}
+
+/**
+ * Start HTTP server and log success
+ */
+function startHttpServer(): any {
+  const PORT = config.port;
+  const server = app.listen(PORT, () => {
+    logger.info('='.repeat(60));
+    logger.info('✓ Simplehire Backend Server Started Successfully');
+    logger.info('='.repeat(60));
+    logger.info(`📍 Server running on port ${PORT}`);
+    logger.info(`📝 Environment: ${config.nodeEnv}`);
+    logger.info(`🌐 Frontend URL: ${config.frontendUrl}`);
+    logger.info(`🔗 Health Check: http://localhost:${PORT}/health`);
+    logger.info(`🔒 JWT Authentication: Configured`);
+    logger.info(`💾 Database: Connected and ready`);
+    logger.info('='.repeat(60));
+    logger.info('Server is ready to accept requests');
+    logger.info('='.repeat(60));
+  });
+  
+  return server;
+}
+
+/**
+ * Setup graceful shutdown handlers
+ */
+function setupGracefulShutdown(server: any): void {
+  const gracefulShutdown = async (signal: string) => {
+    logger.info(`\n${signal} received. Starting graceful shutdown...`);
+    
+    server.close(async () => {
+      logger.info('HTTP server closed');
+      
+      // Disconnect from database
+      await disconnectDatabase();
+      
+      logger.info('Graceful shutdown complete');
+      process.exit(0);
+    });
+
+    // Force shutdown after 10 seconds
+    setTimeout(() => {
+      logger.error('Forced shutdown after timeout');
+      process.exit(1);
+    }, 10000);
+  };
+
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+  // Handle unhandled rejections
+  process.on('unhandledRejection', (err: Error) => {
+    logger.error('Unhandled Rejection:', err);
+    process.exit(1);
+  });
 }
 
 // Start the server

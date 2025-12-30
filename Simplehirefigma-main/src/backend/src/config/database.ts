@@ -18,7 +18,7 @@ export async function testDatabaseConnection(
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       logger.info(`Testing database connection (attempt ${attempt}/${maxRetries})...`);
-      await prisma.$connect();
+      // Prisma connects automatically on first query, no need for explicit $connect()
       await prisma.$queryRaw`SELECT 1`;
       logger.info('✓ Database connection successful');
       return true;

@@ -1,14 +1,29 @@
-export class AppError extends Error {
+// Custom error class that doesn't extend Error to avoid class inheritance issues
+export class AppError {
   public statusCode: number;
   public code: string;
   public details?: any;
+  public message: string;
+  public name: string = 'AppError';
 
   constructor(message: string, statusCode: number = 500, code: string = 'ERROR', details?: any) {
-    super(message);
-        Object.setPrototypeOf(this, AppError.prototype);
+    this.message = message;
     this.statusCode = statusCode;
     this.code = code;
     this.details = details;
-    Error.captureStackTrace(this, this.constructor);
+  }
+
+  toJSON() {
+    return {
+      name: this.name,
+      message: this.message,
+      statusCode: this.statusCode,
+      code: this.code,
+      details: this.details,
+    };
+  }
+
+  toString() {
+    return `[${this.code}] ${this.message}`;
   }
 }

@@ -39,7 +39,7 @@ export const optionalAuth = (req: AuthRequest, res: Response, next: NextFunction
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      req.user = null;
+      req.user = undefined;
       return next();
     }
 
@@ -53,12 +53,12 @@ export const optionalAuth = (req: AuthRequest, res: Response, next: NextFunction
         name: '',
       };
     } catch (error) {
-      req.user = null;
+      req.user = undefined;
     }
 
     next();
   } catch (error) {
-    req.user = null;
+    req.user = undefined;
     next();
   }
 };

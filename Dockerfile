@@ -1,79 +1,74 @@
 # Multi-stage build for Node.js backend with Prisma
-FROM node:20-alpine AS base
+FROM node:20-alpine AS builder
 
-# Upgrade npm to latest version
-RUN npm install -g npm@11.7.0
-
-# Install dependencies needed for Prisma and native modules
-RUN apk add --no-cache libc6-compat openssl
-
-# ============================================
-# Dependencies stage - install all dependencies
-# ============================================
-FROM base AS deps
 WORKDIR /app
 
-# Copy backend package files
-COPY Simplehirefigma-main/src/backend/package*.json ./backend/
-COPY Simplehirefigma-main/src/backend/prisma ./backend/prisma/
+# Install build dependencies
+RUN apk add --no-cache python3 make g++
 
-# Install backend dependencies (including devDependencies for build)
-WORKDIR /app/backend
-RUN npm install
+# Copy package files
+COPY package*.json ./
+COPY Simplehirefigma-main/src/backend/package*.json ./Simplehirefigma-main/src/backend/
+COPY Simplehirefigma-main/src/backend/prisma ./Simplehirefigma-main/src/backend/prisma/
 
-# ============================================
-# Builder stage - generate Prisma client and build TypeScript
-# ============================================
-FROM base AS builder
-WORKDIR /app
+# CRITICAL: Nuclear option - remove EVERYTHING
+RUN rm -rf node_modules package-lock.json dist .npm .cache && \
+    rm -rf Simplehirefigma-main/src/backend/node_modules && \
+    rm -rf Simplehirefigma-main/src/backend/dist && \
+    npm cache clean --force && \
+    npm cache verify
 
-# Copy node_modules from deps stage
-COPY --from=deps /app/backend/node_modules ./backend/node_modules
+# Install root dependencies
+RUN npm ci
 
-# Copy backend source code
-COPY Simplehirefigma-main/src/backend ./backend/
+# Install backend dependencies
+WORKDIR /app/Simplehirefigma-main/src/backend
+RUN npm ci
 
 # Generate Prisma Client
-WORKDIR /app/backend
 RUN npx prisma generate
 
-# Build TypeScript to JavaScript
-RUN npm run build
+# Copy ALL source code
+WORKDIR /app
+COPY . .
 
-# ============================================
-# Production stage - minimal runtime image
-# ============================================
-FROM base AS runner
+# Build backend
+WORKDIR /app/Simplehirefigma-main/src/backend
+
+# Remove dist again right before build
+RUN rm -rf dist
+
+# Build with verbose logging
+RUN npm run build 2>&1 | tee build.log
+
+# Verify critical files exist
+RUN test -f dist/utils/errors.js || (echo "ERROR: errors.js missing!" && cat build.log && exit 1)
+RUN test -f dist/server.js || (echo "ERROR: server.js missing!" && cat build.log && exit 1)
+
+# Show compiled errors.js for verification
+RUN echo "=== Compiled errors.js content ===" && head -50 dist/utils/errors.js
+
+# Production stage
+FROM node:20-alpine
+
 WORKDIR /app
 
-ENV NODE_ENV=production
+# Copy built files from builder
+COPY --from=builder /app/Simplehirefigma-main/src/backend/dist ./dist
+COPY --from=builder /app/Simplehirefigma-main/src/backend/node_modules ./node_modules
+COPY --from=builder /app/Simplehirefigma-main/src/backend/package*.json ./
+COPY --from=builder /app/Simplehirefigma-main/src/backend/prisma ./prisma
+COPY --from=builder /app/Simplehirefigma-main/src/backend/scripts ./scripts
 
-# Copy node_modules from deps stage (includes all dependencies needed for runtime)
-COPY --from=deps /app/backend/node_modules ./node_modules
+# Runtime verification
+RUN node -e "try { require('./dist/utils/errors'); console.log('✓ errors.js loads successfully'); } catch(e) { console.error('✗ errors.js failed to load:', e); process.exit(1); }"
 
-# Copy Prisma schema and migrations
-COPY Simplehirefigma-main/src/backend/prisma ./prisma
-
-# Copy built application
-COPY --from=builder /app/backend/dist ./dist
-COPY Simplehirefigma-main/src/backend/config ./dist/config
-
-# Generate Prisma Client in production image
-RUN npx prisma generate
-
-# Create a non-root user
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 expressjs && \
-    chown -R expressjs:nodejs /app
-
-USER expressjs
-
-# Expose the port your backend runs on
+# Expose port
 EXPOSE 3000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+HEALTHCHECK --interval=10s --timeout=5s --start-period=40s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
-# Start command: run migrations then start server
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]
+# Start server with verification
+CMD ["sh", "-c", "npx prisma migrate deploy && node scripts/verify-runtime.js && node dist/server.js"]

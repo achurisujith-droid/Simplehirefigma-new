@@ -1,31 +1,50 @@
-// Custom error class with bulletproof Error inheritance
-export class AppError extends Error {
-  public statusCode: number;
-  public code: string;
-  public details?: any;
+/**
+ * Custom Application Error Class
+ * Handles all application-level errors with proper Error inheritance
+ */
 
-  constructor(message: string, statusCode: number = 500, code: string = 'ERROR', details?: any) {
-    // Ensure Error is available
-    if (typeof Error === 'undefined') {
-      throw new TypeError('Error constructor is not available');
-    }
-    
+// Defensive check: Ensure Error is available before class definition
+if (typeof Error === 'undefined') {
+  throw new TypeError('CRITICAL: Error constructor is not available in runtime environment');
+}
+
+// Store Error reference to avoid lookup issues
+const BaseError = Error;
+
+export class AppError extends BaseError {
+  public readonly statusCode: number;
+  public readonly code: string;
+  public readonly details?: any;
+  public readonly isOperational: boolean;
+
+  constructor(
+    message: string, 
+    statusCode: number = 500, 
+    code: string = 'ERROR', 
+    details?: any,
+    isOperational: boolean = true
+  ) {
+    // Call parent constructor
     super(message);
     
-    // Set the name explicitly
-    this.name = this.constructor.name || 'AppError';
+    // Manually set the name
+    this.name = 'AppError';
     
-    // Restore prototype chain for proper instanceof checks
-    Object.setPrototypeOf(this, new.target.prototype);
-    
+    // Set properties
     this.statusCode = statusCode;
     this.code = code;
     this.details = details;
+    this.isOperational = isOperational;
     
-    // Capture stack trace with fallback
-    if (typeof (Error as any).captureStackTrace === 'function') {
-      (Error as any).captureStackTrace(this, this.constructor);
+    // Fix prototype chain explicitly
+    // This is critical for instanceof checks to work correctly
+    Object.setPrototypeOf(this, AppError.prototype);
+    
+    // Capture stack trace with multiple fallbacks
+    if (typeof Error.captureStackTrace === 'function') {
+      Error.captureStackTrace(this, this.constructor);
     } else {
+      // Manual stack trace creation as fallback
       this.stack = (new Error(message)).stack;
     }
   }
@@ -37,6 +56,7 @@ export class AppError extends Error {
       statusCode: this.statusCode,
       code: this.code,
       details: this.details,
+      isOperational: this.isOperational,
       stack: this.stack,
     };
   }
@@ -45,3 +65,19 @@ export class AppError extends Error {
     return `[${this.code}] ${this.message}`;
   }
 }
+
+// Factory functions for common errors
+export const createValidationError = (message: string, details?: any) => 
+  new AppError(message, 400, 'VALIDATION_ERROR', details);
+
+export const createNotFoundError = (message: string, details?: any) => 
+  new AppError(message, 404, 'NOT_FOUND', details);
+
+export const createUnauthorizedError = (message: string = 'Unauthorized', details?: any) => 
+  new AppError(message, 401, 'UNAUTHORIZED', details);
+
+export const createForbiddenError = (message: string = 'Forbidden', details?: any) => 
+  new AppError(message, 403, 'FORBIDDEN', details);
+
+export const createInternalError = (message: string = 'Internal server error', details?: any) => 
+  new AppError(message, 500, 'INTERNAL_ERROR', details);

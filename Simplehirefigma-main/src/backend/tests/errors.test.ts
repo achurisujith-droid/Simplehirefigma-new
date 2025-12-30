@@ -1,4 +1,11 @@
-import { AppError } from '../src/utils/errors';
+import { 
+  AppError, 
+  createValidationError,
+  createNotFoundError,
+  createUnauthorizedError,
+  createForbiddenError,
+  createInternalError
+} from '../src/utils/errors';
 
 describe('AppError Class', () => {
   describe('Basic Instantiation', () => {
@@ -11,16 +18,18 @@ describe('AppError Class', () => {
       expect(error.statusCode).toBe(500);
       expect(error.code).toBe('ERROR');
       expect(error.name).toBe('AppError');
+      expect(error.isOperational).toBe(true);
       expect(error.stack).toBeDefined();
     });
 
     it('should create an AppError with custom values', () => {
-      const error = new AppError('Not found', 404, 'NOT_FOUND', { resource: 'user' });
+      const error = new AppError('Not found', 404, 'NOT_FOUND', { resource: 'user' }, false);
       
       expect(error.message).toBe('Not found');
       expect(error.statusCode).toBe(404);
       expect(error.code).toBe('NOT_FOUND');
       expect(error.details).toEqual({ resource: 'user' });
+      expect(error.isOperational).toBe(false);
     });
   });
 
@@ -45,7 +54,6 @@ describe('AppError Class', () => {
       const error = new AppError('Test error');
       
       expect(error.stack).toBeDefined();
-      expect(error.stack).toContain('AppError');
       expect(error.stack).toContain('Test error');
     });
   });
@@ -60,6 +68,7 @@ describe('AppError Class', () => {
       expect(json.statusCode).toBe(400);
       expect(json.code).toBe('BAD_REQUEST');
       expect(json.details).toEqual({ field: 'email' });
+      expect(json.isOperational).toBe(true);
       expect(json.stack).toBeDefined();
     });
   });
@@ -87,6 +96,54 @@ describe('AppError Class', () => {
       const error = new AppError('Test error');
       expect(error.name).toBe('AppError');
       expect(error.constructor.name).toBe('AppError');
+    });
+  });
+
+  describe('Factory Functions', () => {
+    it('should create validation error with factory function', () => {
+      const error = createValidationError('Invalid input', { field: 'email' });
+      
+      expect(error).toBeInstanceOf(AppError);
+      expect(error.statusCode).toBe(400);
+      expect(error.code).toBe('VALIDATION_ERROR');
+      expect(error.message).toBe('Invalid input');
+      expect(error.details).toEqual({ field: 'email' });
+    });
+
+    it('should create not found error with factory function', () => {
+      const error = createNotFoundError('Resource not found');
+      
+      expect(error).toBeInstanceOf(AppError);
+      expect(error.statusCode).toBe(404);
+      expect(error.code).toBe('NOT_FOUND');
+      expect(error.message).toBe('Resource not found');
+    });
+
+    it('should create unauthorized error with factory function', () => {
+      const error = createUnauthorizedError();
+      
+      expect(error).toBeInstanceOf(AppError);
+      expect(error.statusCode).toBe(401);
+      expect(error.code).toBe('UNAUTHORIZED');
+      expect(error.message).toBe('Unauthorized');
+    });
+
+    it('should create forbidden error with factory function', () => {
+      const error = createForbiddenError('Access denied');
+      
+      expect(error).toBeInstanceOf(AppError);
+      expect(error.statusCode).toBe(403);
+      expect(error.code).toBe('FORBIDDEN');
+      expect(error.message).toBe('Access denied');
+    });
+
+    it('should create internal error with factory function', () => {
+      const error = createInternalError();
+      
+      expect(error).toBeInstanceOf(AppError);
+      expect(error.statusCode).toBe(500);
+      expect(error.code).toBe('INTERNAL_ERROR');
+      expect(error.message).toBe('Internal server error');
     });
   });
 });

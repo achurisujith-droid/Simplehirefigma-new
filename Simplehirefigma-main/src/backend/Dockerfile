@@ -39,4 +39,4 @@ EXPOSE 3000
 #   CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 
 # Run migrations and start
-CMD ["sh", "-c", "npx prisma migrate deploy && node dist/server.js"]
+CMD ["sh["sh", "-c", "node dist/server.js || sleep 3600"]

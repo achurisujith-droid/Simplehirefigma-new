@@ -130,7 +130,7 @@ if (config.nodeEnv === 'production') {
   // Rate limiter for static file serving
   const staticLimiter = rateLimit({
     windowMs: 60000, // 1 minute
-    max: 100, // 100 requests per minute per IP
+    max: 500, // 500 requests per minute per IP (allows for many assets)
     message: { success: false, error: 'Too many requests', code: 'RATE_LIMIT_EXCEEDED' },
     skip: (req) => req.path.startsWith('/api'), // Skip API routes (they have their own limiter)
   });

@@ -40,8 +40,13 @@ describe('Health Check API', () => {
         expect(response.body.success).toBe(true);
         expect(response.body.services.database).toBe(false);
       } finally {
-        // Ensure reconnect happens in finally block
-        await prisma.$connect();
+        // Reconnect - wrap in try-catch since health endpoint is designed to work without DB
+        try {
+          await prisma.$connect();
+        } catch (error) {
+          // Prisma auto-connects on next query, so this is safe to ignore
+          console.log('Database will reconnect automatically on next query');
+        }
       }
     });
 

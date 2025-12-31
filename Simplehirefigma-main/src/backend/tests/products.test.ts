@@ -29,6 +29,7 @@ describe('Products API', () => {
         {
           id: 'skill',
           name: 'Skill Interview',
+          type: 'interview',
           price: 4999,
           description: 'Complete skill verification',
           features: ['Voice interview', 'MCQ test', 'Coding challenge'],
@@ -37,6 +38,7 @@ describe('Products API', () => {
         {
           id: 'id-visa',
           name: 'ID + Visa Verification',
+          type: 'verification',
           price: 2999,
           description: 'Identity verification',
           features: ['ID check', 'Visa verification'],
@@ -45,6 +47,7 @@ describe('Products API', () => {
         {
           id: 'reference',
           name: 'Reference Check',
+          type: 'reference',
           price: 1999,
           description: 'Professional reference verification',
           features: ['Up to 5 references', 'Email verification'],
@@ -53,6 +56,7 @@ describe('Products API', () => {
         {
           id: 'combo',
           name: 'Complete Verification Bundle',
+          type: 'bundle',
           price: 7999,
           description: 'All verifications bundled',
           features: ['All features'],

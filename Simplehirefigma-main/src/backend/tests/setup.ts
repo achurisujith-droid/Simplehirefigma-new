@@ -39,8 +39,15 @@ beforeAll(async () => {
 
 // Clean up after each test
 afterEach(async () => {
-  // Optional: clean specific tables after each test if needed
-  // Note: Individual test suites handle their own cleanup in beforeEach
+  // Clean up any test data to prevent interference between tests
+  try {
+    // Delete child tables first to respect foreign key constraints
+    await prisma.refreshToken.deleteMany();
+    await prisma.userData.deleteMany();
+  } catch (error) {
+    // Ignore cleanup errors
+    console.warn('Warning: afterEach cleanup error:', error);
+  }
 });
 
 // Clean up after all tests

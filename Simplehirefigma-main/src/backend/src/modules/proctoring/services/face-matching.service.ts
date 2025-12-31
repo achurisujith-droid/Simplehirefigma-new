@@ -3,15 +3,17 @@
  * AWS Rekognition integration for face comparison
  */
 
-import AWS from 'aws-sdk';
+import { RekognitionClient, CompareFacesCommand, CompareFacesCommandInput } from '@aws-sdk/client-rekognition';
 import config from '../../../config';
 import logger from '../../../config/logger';
 
 // Initialize AWS Rekognition
-const rekognition = new AWS.Rekognition({
-  accessKeyId: config.aws.accessKeyId,
-  secretAccessKey: config.aws.secretAccessKey,
+const rekognitionClient = new RekognitionClient({
   region: config.aws.region,
+  credentials: {
+    accessKeyId: config.aws.accessKeyId,
+    secretAccessKey: config.aws.secretAccessKey,
+  },
 });
 
 export interface FaceMatchResult {
@@ -42,17 +44,17 @@ export async function compareFaces(
     logger.info('Comparing faces with AWS Rekognition');
 
     // Call AWS Rekognition CompareFaces API
-    const result = await rekognition
-      .compareFaces({
-        SourceImage: {
-          Bytes: referenceBuffer,
-        },
-        TargetImage: {
-          Bytes: liveBuffer,
-        },
-        SimilarityThreshold: 70, // Minimum similarity threshold
-      })
-      .promise();
+    const params: CompareFacesCommandInput = {
+      SourceImage: {
+        Bytes: referenceBuffer,
+      },
+      TargetImage: {
+        Bytes: liveBuffer,
+      },
+      SimilarityThreshold: 70, // Minimum similarity threshold
+    };
+
+    const result = await rekognitionClient.send(new CompareFacesCommand(params));
 
     // Check if faces match
     if (!result.FaceMatches || result.FaceMatches.length === 0) {

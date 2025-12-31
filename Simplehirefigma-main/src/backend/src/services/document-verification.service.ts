@@ -3,28 +3,48 @@
  * Integrates with AWS Textract for ID extraction and Rekognition for face comparison
  */
 
-import AWS from 'aws-sdk';
+import {
+  TextractClient,
+  AnalyzeIDCommand,
+  DetectDocumentTextCommand,
+  AnalyzeIDCommandInput,
+  DetectDocumentTextCommandInput,
+} from '@aws-sdk/client-textract';
+import {
+  RekognitionClient,
+  CompareFacesCommand,
+  DetectFacesCommand,
+  CompareFacesCommandInput,
+  DetectFacesCommandInput,
+} from '@aws-sdk/client-rekognition';
+import { S3Client } from '@aws-sdk/client-s3';
 import config from '../config';
 import logger from '../config/logger';
 import { AppError } from '../utils/errors';
 
 // Configure AWS services
-const textract = new AWS.Textract({
-  accessKeyId: config.aws.accessKeyId,
-  secretAccessKey: config.aws.secretAccessKey,
+const textractClient = new TextractClient({
   region: config.aws.region,
+  credentials: {
+    accessKeyId: config.aws.accessKeyId,
+    secretAccessKey: config.aws.secretAccessKey,
+  },
 });
 
-const rekognition = new AWS.Rekognition({
-  accessKeyId: config.aws.accessKeyId,
-  secretAccessKey: config.aws.secretAccessKey,
+const rekognitionClient = new RekognitionClient({
   region: config.aws.region,
+  credentials: {
+    accessKeyId: config.aws.accessKeyId,
+    secretAccessKey: config.aws.secretAccessKey,
+  },
 });
 
-const s3 = new AWS.S3({
-  accessKeyId: config.aws.accessKeyId,
-  secretAccessKey: config.aws.secretAccessKey,
+const s3Client = new S3Client({
   region: config.aws.region,
+  credentials: {
+    accessKeyId: config.aws.accessKeyId,
+    secretAccessKey: config.aws.secretAccessKey,
+  },
 });
 
 interface ExtractedIDData {
@@ -61,7 +81,7 @@ export class DocumentVerificationService {
     try {
       logger.info('Extracting ID data from document:', s3Key);
 
-      const params: AWS.Textract.AnalyzeIDRequest = {
+      const params: AnalyzeIDCommandInput = {
         DocumentPages: [
           {
             S3Object: {
@@ -72,7 +92,7 @@ export class DocumentVerificationService {
         ],
       };
 
-      const result = await textract.analyzeID(params).promise();
+      const result = await textractClient.send(new AnalyzeIDCommand(params));
 
       if (!result.IdentityDocuments || result.IdentityDocuments.length === 0) {
         throw new AppError('No identity document found in image', 400, 'NO_DOCUMENT_FOUND');
@@ -128,7 +148,7 @@ export class DocumentVerificationService {
     try {
       logger.info('Comparing faces:', { idS3Key, selfieS3Key });
 
-      const params: AWS.Rekognition.CompareFacesRequest = {
+      const params: CompareFacesCommandInput = {
         SourceImage: {
           S3Object: {
             Bucket: config.aws.s3Bucket,
@@ -144,7 +164,7 @@ export class DocumentVerificationService {
         SimilarityThreshold: 80, // Minimum 80% similarity
       };
 
-      const result = await rekognition.compareFaces(params).promise();
+      const result = await rekognitionClient.send(new CompareFacesCommand(params));
 
       if (!result.FaceMatches || result.FaceMatches.length === 0) {
         logger.warn('No matching faces found');
@@ -196,7 +216,7 @@ export class DocumentVerificationService {
    */
   async detectFaces(s3Key: string): Promise<any> {
     try {
-      const params: AWS.Rekognition.DetectFacesRequest = {
+      const params: DetectFacesCommandInput = {
         Image: {
           S3Object: {
             Bucket: config.aws.s3Bucket,
@@ -206,7 +226,7 @@ export class DocumentVerificationService {
         Attributes: ['ALL'],
       };
 
-      const result = await rekognition.detectFaces(params).promise();
+      const result = await rekognitionClient.send(new DetectFacesCommand(params));
 
       if (!result.FaceDetails || result.FaceDetails.length === 0) {
         throw new AppError('No face detected in image', 400, 'NO_FACE_DETECTED');
@@ -229,7 +249,7 @@ export class DocumentVerificationService {
   }> {
     try {
       // Detect text to check image quality
-      const params: AWS.Textract.DetectDocumentTextRequest = {
+      const params: DetectDocumentTextCommandInput = {
         Document: {
           S3Object: {
             Bucket: config.aws.s3Bucket,
@@ -238,7 +258,7 @@ export class DocumentVerificationService {
         },
       };
 
-      const result = await textract.detectDocumentText(params).promise();
+      const result = await textractClient.send(new DetectDocumentTextCommand(params));
       const blocks = result.Blocks || [];
 
       const issues: string[] = [];

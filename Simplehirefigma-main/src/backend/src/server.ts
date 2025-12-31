@@ -131,8 +131,17 @@ if (config.nodeEnv === 'production') {
   app.use(express.static(frontendPath));
   
   // SPA fallback - serve index.html for all non-API routes
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(frontendPath, 'index.html'));
+  app.get('*', (req, res, next) => {
+    // Skip if request is for API routes (already handled above)
+    if (req.path.startsWith('/api')) {
+      return next();
+    }
+    
+    res.sendFile(path.join(frontendPath, 'index.html'), (err) => {
+      if (err) {
+        next(err);
+      }
+    });
   });
 }
 

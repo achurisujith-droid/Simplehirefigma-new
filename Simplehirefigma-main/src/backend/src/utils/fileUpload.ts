@@ -40,8 +40,13 @@ export const uploadFile = async (
 
     const result = await upload.done();
 
+    // Construct URL based on endpoint configuration
+    const url = config.aws.endpoint
+      ? `${config.aws.endpoint}/${config.aws.s3Bucket}/${fileName}`
+      : `https://${config.aws.s3Bucket}.s3.${config.aws.region}.amazonaws.com/${fileName}`;
+
     return {
-      url: `https://${config.aws.s3Bucket}.s3.${config.aws.region}.amazonaws.com/${fileName}`,
+      url,
       key: fileName,
     };
   } catch (error: any) {

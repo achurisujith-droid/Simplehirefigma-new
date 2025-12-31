@@ -1,6 +1,7 @@
 import jwt, { SignOptions } from 'jsonwebtoken';
 import config from '../config';
 import { TokenPayload } from '../types';
+import { randomBytes } from 'crypto';
 
 export const generateAccessToken = (userId: string, email: string): string => {
   const payload: TokenPayload = {
@@ -11,6 +12,7 @@ export const generateAccessToken = (userId: string, email: string): string => {
 
   const options: SignOptions = {
     expiresIn: config.jwt.expiresIn as any,
+    jwtid: randomBytes(16).toString('hex'), // Add unique JWT ID
   };
 
   return jwt.sign(payload, config.jwt.secret, options);
@@ -25,6 +27,7 @@ export const generateRefreshToken = (userId: string, email: string): string => {
 
   const options: SignOptions = {
     expiresIn: config.jwt.refreshExpiresIn as any,
+    jwtid: randomBytes(16).toString('hex'), // Add unique JWT ID to ensure unique tokens
   };
 
   return jwt.sign(payload, config.jwt.refreshSecret, options);

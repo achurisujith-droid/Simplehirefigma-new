@@ -5,6 +5,7 @@
 import request from 'supertest';
 import app from '../src/server';
 import { prisma } from './setup';
+import prismaDb from '../src/config/database'; // Import the server's prisma instance
 
 describe('Health Check API', () => {
   describe('GET /health', () => {
@@ -33,7 +34,8 @@ describe('Health Check API', () => {
 
     it('should return 200 even when database is not healthy', async () => {
       try {
-        await prisma.$disconnect();
+        // Disconnect the server's prisma instance to test database failure handling
+        await prismaDb.$disconnect();
 
         const response = await request(app).get('/health').expect(200);
 

@@ -16,6 +16,7 @@ process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://test:test@l
 // Clean up database before all tests
 beforeAll(async () => {
   // Clean all tables (in order to respect foreign keys)
+  // Delete child tables first, then parent tables
   try {
     await prisma.certificate.deleteMany();
     await prisma.proctoringEvent.deleteMany();
@@ -26,6 +27,7 @@ beforeAll(async () => {
     await prisma.iDVerification.deleteMany();
     await prisma.payment.deleteMany();
     await prisma.session.deleteMany();
+    // IMPORTANT: Delete refresh tokens before users to respect foreign key constraint
     await prisma.refreshToken.deleteMany();
     await prisma.userData.deleteMany();
     await prisma.user.deleteMany();
@@ -37,16 +39,34 @@ beforeAll(async () => {
 
 // Clean up after each test
 afterEach(async () => {
-  // Optional: clean specific tables after each test if needed
-  // Note: Individual test suites handle their own cleanup in beforeEach
+  // Clean up any test data to prevent interference between tests
+  try {
+    // Delete child tables first to respect foreign key constraints
+    await prisma.refreshToken.deleteMany();
+    await prisma.userData.deleteMany();
+  } catch (error) {
+    // Log cleanup errors for debugging, but don't fail the test
+    if (error instanceof Error) {
+      console.warn('Warning: afterEach cleanup error:', error.message);
+    }
+  }
 });
 
 // Clean up after all tests
 afterAll(async () => {
   try {
+    // Ensure any pending operations complete before disconnecting
+    await new Promise((resolve) => setTimeout(resolve, 100));
     await prisma.$disconnect();
   } catch (error) {
-    console.error('Error disconnecting Prisma:', error);
+    console.error('Error disconnecting Prisma:', error instanceof Error ? error.message : error);
+    // Force disconnect if normal disconnect fails
+    try {
+      await prisma.$disconnect();
+    } catch (secondError) {
+      // Log secondary error but don't throw
+      console.error('Secondary disconnect error:', secondError instanceof Error ? secondError.message : secondError);
+    }
   }
 });
 

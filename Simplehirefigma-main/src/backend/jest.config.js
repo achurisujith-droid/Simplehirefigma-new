@@ -19,4 +19,6 @@ module.exports = {
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   testTimeout: 30000,
   verbose: true,
+  // Run tests serially to avoid database connection race conditions
+  maxWorkers: 1,
 };

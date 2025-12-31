@@ -274,7 +274,10 @@ function setupGracefulShutdown(server: any): void {
   });
 }
 
-// Start the server
-startServer();
+// Start the server only if not in test environment
+// Tests will use the exported app directly with supertest
+if (process.env.NODE_ENV !== 'test') {
+  startServer();
+}
 
 export default app;

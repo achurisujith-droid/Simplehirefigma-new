@@ -14,7 +14,9 @@ describe('Authentication API', () => {
   };
 
   beforeEach(async () => {
-    // Clean users before each test
+    // Clean refresh tokens first, then users (respect foreign key constraints)
+    await prisma.refreshToken.deleteMany({});
+    await prisma.userData.deleteMany({});
     await prisma.user.deleteMany({});
   });
 

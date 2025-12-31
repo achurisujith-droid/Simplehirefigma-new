@@ -52,14 +52,22 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
     // Hash refresh token before storing (SHA-256)
     const hashedRefreshToken = sha256Hash(refreshToken);
 
-    // Store hashed refresh token
-    await prisma.refreshToken.create({
-      data: {
-        token: hashedRefreshToken,
-        userId: user.id,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
-      },
-    });
+    // Store hashed refresh token (with error handling for foreign key constraint)
+    try {
+      await prisma.refreshToken.create({
+        data: {
+          token: hashedRefreshToken,
+          userId: user.id,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+        },
+      });
+    } catch (error: any) {
+      // Handle foreign key constraint error (user was deleted during race condition)
+      if (error.code === 'P2003') {
+        throw new AppError('Account creation failed. Please try again.', 500, 'USER_CREATION_ERROR');
+      }
+      throw error;
+    }
 
     // Log signup event
     logger.info(`User signed up: ${user.email}`, { userId: user.id });

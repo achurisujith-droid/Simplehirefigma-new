@@ -15,7 +15,7 @@ router.use(authenticate);
 // Validation middleware for reference creation
 const referenceValidation = [
   body('name').trim().notEmpty().withMessage('Name is required'),
-  body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+  body('email').trim().isEmail().withMessage('Valid email is required').normalizeEmail(),
   body('phone').trim().notEmpty().withMessage('Phone is required'),
   body('company').trim().notEmpty().withMessage('Company is required'),
   body('position').trim().notEmpty().withMessage('Position is required'),
@@ -134,6 +134,11 @@ router.delete('/:referenceId', async (req: AuthRequest, res: Response, next: Nex
       throw new AppError('Reference not found', 404, 'NOT_FOUND');
     }
 
+    // Check if reference has been submitted
+    if (existing.status === 'email-sent' || existing.submittedAt) {
+      throw new AppError('Cannot delete submitted references', 400, 'SUBMITTED_REFERENCE');
+    }
+
     await prisma.reference.delete({
       where: { id: referenceId },
     });
@@ -152,12 +157,16 @@ router.post('/submit', async (req: AuthRequest, res: Response, next: NextFunctio
   try {
     const { referenceIds } = req.body;
 
+    // Validate at least 1 reference
+    if (!referenceIds || referenceIds.length === 0) {
+      throw new AppError('At least 1 reference is required', 400, 'NO_REFERENCES');
+    }
+
     // Update status to email-sent
     await prisma.reference.updateMany({
       where: {
         id: { in: referenceIds },
-        userId: req.user!.id,
-      },
+        userId: req.user!.id },
       data: {
         status: 'email-sent',
         submittedAt: new Date(),
@@ -176,6 +185,7 @@ router.post('/submit', async (req: AuthRequest, res: Response, next: NextFunctio
     res.json({
       success: true,
       data: {
+        submitted: referenceIds.length,
         emailsSent: referenceIds.length,
         failedEmails: [],
       },
@@ -209,12 +219,11 @@ router.get('/summary', async (req: AuthRequest, res: Response, next: NextFunctio
     });
 
     const summary = {
-      totalReferences: references.length,
-      responsesReceived: references.filter(
-        r => r.status === 'response-received' || r.status === 'verified'
-      ).length,
+      total: references.length,
+      draft: references.filter(r => r.status === 'draft').length,
+      sent: references.filter(r => r.status === 'email-sent').length,
+      completed: references.filter(r => r.status === 'response-received').length,
       verified: references.filter(r => r.status === 'verified').length,
-      pending: references.filter(r => r.status === 'email-sent' || r.status === 'pending').length,
     };
 
     res.json({

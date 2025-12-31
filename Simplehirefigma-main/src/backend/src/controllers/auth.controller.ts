@@ -17,7 +17,7 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
     });
 
     if (existingUser) {
-      throw new AppError('Email already registered', 400, 'DUPLICATE_EMAIL');
+      throw new AppError('email already registered', 400, 'DUPLICATE_EMAIL');
     }
 
     // Hash password

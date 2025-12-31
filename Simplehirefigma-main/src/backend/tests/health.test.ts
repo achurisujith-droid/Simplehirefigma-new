@@ -42,16 +42,12 @@ describe('Health Check API', () => {
         expect(response.body.success).toBe(true);
         expect(response.body.services.database).toBe(false);
       } finally {
-        // Ensure reconnect happens in finally block with retry logic
+        // Reconnect - wrap in try-catch since health endpoint is designed to work without DB
         try {
-          await prismaDb.$connect();
-          // Wait a bit to ensure connection is fully established
-          await new Promise((resolve) => setTimeout(resolve, 100));
+          await prisma.$connect();
         } catch (error) {
-          console.error('Error reconnecting Prisma:', error);
-          // Retry once more if first attempt fails
-          await new Promise((resolve) => setTimeout(resolve, 200));
-          await prismaDb.$connect();
+          // Prisma auto-connects on next query, so this is safe to ignore
+          console.log('Database will reconnect automatically on next query');
         }
       }
     });

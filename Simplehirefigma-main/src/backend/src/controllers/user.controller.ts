@@ -38,6 +38,7 @@ export const getUserData = async (req: AuthRequest, res: Response, next: NextFun
     res.json({
       success: true,
       data: {
+        userId: user.id,
         id: user.id,
         email: user.email,
         name: user.name,
@@ -109,7 +110,7 @@ export const updateInterviewProgress = async (
   try {
     const progress = req.body;
 
-    await prisma.userData.update({
+    const userData = await prisma.userData.update({
       where: { userId: req.user!.id },
       data: {
         interviewProgress: progress,
@@ -118,6 +119,7 @@ export const updateInterviewProgress = async (
 
     res.json({
       success: true,
+      data: userData,
       message: 'Progress updated',
     });
   } catch (error) {
@@ -133,7 +135,7 @@ export const updateIdVerificationStatus = async (
   try {
     const { status } = req.body;
 
-    await prisma.userData.update({
+    const userData = await prisma.userData.update({
       where: { userId: req.user!.id },
       data: {
         idVerificationStatus: status,
@@ -142,6 +144,7 @@ export const updateIdVerificationStatus = async (
 
     res.json({
       success: true,
+      data: userData,
       message: 'Status updated',
     });
   } catch (error) {
@@ -157,7 +160,7 @@ export const updateReferenceCheckStatus = async (
   try {
     const { status } = req.body;
 
-    await prisma.userData.update({
+    const userData = await prisma.userData.update({
       where: { userId: req.user!.id },
       data: {
         referenceCheckStatus: status,
@@ -166,6 +169,7 @@ export const updateReferenceCheckStatus = async (
 
     res.json({
       success: true,
+      data: userData,
       message: 'Status updated',
     });
   } catch (error) {

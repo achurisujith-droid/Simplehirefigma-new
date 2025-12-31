@@ -72,7 +72,12 @@ describe('Authentication API', () => {
   describe('POST /api/auth/login', () => {
     beforeEach(async () => {
       // Create user for login tests
-      await request(app).post('/api/auth/signup').send(testUser);
+      const signupResponse = await request(app).post('/api/auth/signup').send(testUser);
+      // Verify signup succeeded
+      if (signupResponse.status !== 201) {
+        console.error('Signup failed:', signupResponse.body);
+        throw new Error(`Signup failed with status ${signupResponse.status}`);
+      }
     });
 
     it('should login successfully with correct credentials', async () => {

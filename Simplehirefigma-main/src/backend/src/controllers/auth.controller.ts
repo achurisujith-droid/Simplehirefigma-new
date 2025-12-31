@@ -110,14 +110,22 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     // Hash refresh token before storing (SHA-256)
     const hashedRefreshToken = sha256Hash(refreshToken);
 
-    // Store hashed refresh token
-    await prisma.refreshToken.create({
-      data: {
-        token: hashedRefreshToken,
-        userId: user.id,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      },
-    });
+    // Store hashed refresh token (with error handling for foreign key constraint)
+    try {
+      await prisma.refreshToken.create({
+        data: {
+          token: hashedRefreshToken,
+          userId: user.id,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
+      });
+    } catch (error: any) {
+      // Handle foreign key constraint error (user was deleted)
+      if (error.code === 'P2003') {
+        throw new AppError('Invalid credentials', 401, 'INVALID_CREDENTIALS');
+      }
+      throw error;
+    }
 
     // Log login event
     logger.info(`User logged in: ${user.email}`, { userId: user.id });

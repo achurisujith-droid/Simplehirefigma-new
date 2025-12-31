@@ -135,7 +135,7 @@ router.delete('/:referenceId', async (req: AuthRequest, res: Response, next: Nex
     }
 
     // Check if reference has been submitted
-    if (existing.status === 'email-sent' || existing.submittedAt) {
+    if (existing.status === 'email-sent' || existing.status === 'sent' || existing.submittedAt) {
       throw new AppError('Cannot delete submitted references', 400, 'SUBMITTED_REFERENCE');
     }
 
@@ -221,7 +221,7 @@ router.get('/summary', async (req: AuthRequest, res: Response, next: NextFunctio
     const summary = {
       total: references.length,
       draft: references.filter(r => r.status === 'draft').length,
-      sent: references.filter(r => r.status === 'email-sent').length,
+      sent: references.filter(r => r.status === 'email-sent' || r.status === 'sent').length,
       completed: references.filter(r => r.status === 'response-received').length,
       verified: references.filter(r => r.status === 'verified').length,
     };

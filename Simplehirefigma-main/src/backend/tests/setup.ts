@@ -35,14 +35,19 @@ beforeAll(async () => {
   }
 });
 
-// Clean up after all tests
-afterAll(async () => {
-  await prisma.$disconnect();
-});
-
 // Clean up after each test
 afterEach(async () => {
   // Optional: clean specific tables after each test if needed
+  // Note: Individual test suites handle their own cleanup in beforeEach
+});
+
+// Clean up after all tests
+afterAll(async () => {
+  try {
+    await prisma.$disconnect();
+  } catch (error) {
+    console.error('Error disconnecting Prisma:', error);
+  }
 });
 
 export { prisma };

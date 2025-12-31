@@ -17,7 +17,7 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
     });
 
     if (existingUser) {
-      throw new AppError('Email already registered', 409, 'DUPLICATE_EMAIL');
+      throw new AppError('Email already registered', 400, 'DUPLICATE_EMAIL');
     }
 
     // Hash password
@@ -147,8 +147,16 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
       throw new AppError('Refresh token required', 400, 'MISSING_TOKEN');
     }
 
-    // Verify refresh token JWT
-    const decoded = verifyRefreshToken(refreshToken);
+    // Verify refresh token JWT - wrap in try-catch for JWT errors
+    let decoded;
+    try {
+      decoded = verifyRefreshToken(refreshToken);
+    } catch (error: any) {
+      if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+        throw new AppError('Invalid or expired refresh token', 401, 'INVALID_TOKEN');
+      }
+      throw error;
+    }
 
     // Hash the provided refresh token to match stored hash
     const hashedRefreshToken = sha256Hash(refreshToken);

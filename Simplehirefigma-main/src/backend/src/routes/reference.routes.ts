@@ -4,11 +4,40 @@ import { AuthRequest } from '../types';
 import { Response, NextFunction } from 'express';
 import prisma from '../config/database';
 import { AppError } from '../utils/errors';
+import { body } from 'express-validator';
+import { validate } from '../middleware/validation';
 
 const router = Router();
 
 // All routes require authentication
 router.use(authenticate);
+
+// Validation middleware for reference creation
+const referenceValidation = [
+  body('name').trim().notEmpty().withMessage('Name is required'),
+  body('email').isEmail().normalizeEmail().withMessage('Valid email is required'),
+  body('phone').trim().notEmpty().withMessage('Phone is required'),
+  body('company').trim().notEmpty().withMessage('Company is required'),
+  body('position').trim().notEmpty().withMessage('Position is required'),
+  body('relationship').trim().notEmpty().withMessage('Relationship is required'),
+];
+
+// Middleware to check max 5 references
+const checkReferenceLimit = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const count = await prisma.reference.count({
+      where: { userId: req.user!.id },
+    });
+    
+    if (count >= 5) {
+      throw new AppError('Maximum of 5 references allowed', 400, 'LIMIT_EXCEEDED');
+    }
+    
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
 
 // Get all references
 router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -28,9 +57,18 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
 });
 
 // Add reference
-router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.post('/', validate(referenceValidation), checkReferenceLimit, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { name, email, company, position, relationship, phone } = req.body;
+
+    // Verify user exists
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+    });
+
+    if (!user) {
+      throw new AppError('User not found', 404, 'USER_NOT_FOUND');
+    }
 
     const reference = await prisma.reference.create({
       data: {

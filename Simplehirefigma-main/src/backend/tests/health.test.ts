@@ -32,16 +32,17 @@ describe('Health Check API', () => {
     });
 
     it('should return 200 even when database is not healthy', async () => {
-      // Temporarily disconnect from database to simulate failure
-      await prisma.$disconnect();
+      try {
+        await prisma.$disconnect();
 
-      const response = await request(app).get('/health').expect(200);
+        const response = await request(app).get('/health').expect(200);
 
-      expect(response.body.success).toBe(true);
-      expect(response.body.services.database).toBe(false);
-
-      // Reconnect for other tests
-      await prisma.$connect();
+        expect(response.body.success).toBe(true);
+        expect(response.body.services.database).toBe(false);
+      } finally {
+        // Ensure reconnect happens in finally block
+        await prisma.$connect();
+      }
     });
 
     it('should include timestamp in ISO format', async () => {

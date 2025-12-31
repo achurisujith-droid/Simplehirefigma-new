@@ -14,8 +14,7 @@ router.get('/me/data', userController.getUserData);
 router.patch(
   '/me',
   validate([
-    body('name').optional().trim().isLength({ min: 2 }).withMessage('Name must be at least 2 characters'),
-    body('email').not().exists().withMessage('Email cannot be updated')
+    body('name').optional().trim().isLength({ min: 2 }).withMessage('Name must be at least 2 characters')
   ]),
   userController.updateProfile
 );

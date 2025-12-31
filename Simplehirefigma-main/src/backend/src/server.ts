@@ -127,11 +127,18 @@ app.use('/api/proctoring', authenticate, proctoringRoutes);
 if (config.nodeEnv === 'production') {
   const frontendPath = path.join(__dirname, '..', 'public');
   
+  // Rate limiter for static file serving
+  const staticLimiter = rateLimit({
+    windowMs: 60000, // 1 minute
+    max: 100, // 100 requests per minute per IP
+    message: { success: false, error: 'Too many requests', code: 'RATE_LIMIT_EXCEEDED' },
+  });
+  
   // Serve static files
   app.use(express.static(frontendPath));
   
   // SPA fallback - serve index.html for all non-API routes
-  app.get('*', (req, res, next) => {
+  app.get('*', staticLimiter, (req, res, next) => {
     // Skip if request is for API routes (already handled above)
     if (req.path.startsWith('/api')) {
       return next();

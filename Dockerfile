@@ -83,7 +83,7 @@ EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=10s --timeout=5s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:' + (process.env.PORT || '8080') + '/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+  CMD node -e "const http = require('http'); http.get('http://localhost:' + (process.env.PORT || '8080') + '/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }).on('error', () => { process.exit(1); });"
 
 # Start server with verification
 CMD ["sh", "-c", "npx prisma migrate deploy && node scripts/verify-runtime.js && node dist/server.js"]

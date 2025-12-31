@@ -132,18 +132,17 @@ if (config.nodeEnv === 'production') {
     windowMs: 60000, // 1 minute
     max: 100, // 100 requests per minute per IP
     message: { success: false, error: 'Too many requests', code: 'RATE_LIMIT_EXCEEDED' },
+    skip: (req) => req.path.startsWith('/api'), // Skip API routes (they have their own limiter)
   });
+  
+  // Apply rate limiting to static content
+  app.use(staticLimiter);
   
   // Serve static files
   app.use(express.static(frontendPath));
   
   // SPA fallback - serve index.html for all non-API routes
-  app.get('*', staticLimiter, (req, res, next) => {
-    // Skip if request is for API routes (already handled above)
-    if (req.path.startsWith('/api')) {
-      return next();
-    }
-    
+  app.get('*', (req, res, next) => {
     res.sendFile(path.join(frontendPath, 'index.html'), (err) => {
       if (err) {
         next(err);

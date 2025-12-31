@@ -25,6 +25,7 @@ beforeAll(async () => {
     await prisma.reference.deleteMany();
     await prisma.iDVerification.deleteMany();
     await prisma.payment.deleteMany();
+    await prisma.product.deleteMany();
     await prisma.session.deleteMany();
     await prisma.refreshToken.deleteMany();
     await prisma.userData.deleteMany();
@@ -44,7 +45,14 @@ afterEach(async () => {
 // Clean up after all tests
 afterAll(async () => {
   try {
+    // Give pending operations time to complete
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    
+    // Disconnect from database
     await prisma.$disconnect();
+    
+    // Additional delay to ensure clean exit
+    await new Promise((resolve) => setTimeout(resolve, 100));
   } catch (error) {
     console.error('Error disconnecting Prisma:', error);
   }

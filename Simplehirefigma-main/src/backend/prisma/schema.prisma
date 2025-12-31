@@ -107,6 +107,26 @@ model Certificate {
   @@map("certificates")
 }
 
+model Product {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  price       Int      // Price in cents
+  currency    String   @default("USD")
+  type        String?  // e.g., "skill", "id-visa", "reference", "combo"
+  features    Json?    // Array of features
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  payments Payment[]
+
+  @@index([type])
+  @@index([active])
+  @@map("products")
+}
+
 model Payment {
   id               String   @id @default(uuid())
   userId           String   @map("user_id")
@@ -120,9 +140,11 @@ model Payment {
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id])
 
   @@index([userId])
+  @@index([productId])
   @@index([paymentIntentId])
   @@map("payments")
 }

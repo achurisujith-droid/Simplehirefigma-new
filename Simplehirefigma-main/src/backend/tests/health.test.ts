@@ -34,14 +34,19 @@ describe('Health Check API', () => {
     it('should return 200 even when database is not healthy', async () => {
       try {
         await prisma.$disconnect();
+        
+        // Small delay to ensure disconnect is complete
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
         const response = await request(app).get('/health').expect(200);
 
         expect(response.body.success).toBe(true);
         expect(response.body.services.database).toBe(false);
       } finally {
-        // Ensure reconnect happens in finally block
+        // Ensure reconnect happens in finally block with retry
         await prisma.$connect();
+        // Give time for connection to fully establish
+        await new Promise((resolve) => setTimeout(resolve, 500));
       }
     });
 

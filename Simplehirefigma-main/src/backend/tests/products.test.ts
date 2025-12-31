@@ -10,7 +10,10 @@ describe('Products API', () => {
   let authToken: string;
 
   beforeEach(async () => {
-    // Clean database
+    // Clean database - respect foreign key constraints
+    await prisma.refreshToken.deleteMany({});
+    await prisma.userData.deleteMany({});
+    await prisma.payment.deleteMany({});
     await prisma.product.deleteMany({});
     await prisma.user.deleteMany({});
 

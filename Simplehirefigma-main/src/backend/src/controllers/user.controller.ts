@@ -109,7 +109,7 @@ export const updateInterviewProgress = async (
   try {
     const progress = req.body;
 
-    await prisma.userData.update({
+    const userData = await prisma.userData.update({
       where: { userId: req.user!.id },
       data: {
         interviewProgress: progress,
@@ -119,6 +119,9 @@ export const updateInterviewProgress = async (
     res.json({
       success: true,
       message: 'Progress updated',
+      data: {
+        interviewProgress: userData.interviewProgress,
+      },
     });
   } catch (error) {
     next(error);
@@ -133,7 +136,7 @@ export const updateIdVerificationStatus = async (
   try {
     const { status } = req.body;
 
-    await prisma.userData.update({
+    const userData = await prisma.userData.update({
       where: { userId: req.user!.id },
       data: {
         idVerificationStatus: status,
@@ -143,6 +146,9 @@ export const updateIdVerificationStatus = async (
     res.json({
       success: true,
       message: 'Status updated',
+      data: {
+        idVerificationStatus: userData.idVerificationStatus,
+      },
     });
   } catch (error) {
     next(error);
@@ -157,7 +163,7 @@ export const updateReferenceCheckStatus = async (
   try {
     const { status } = req.body;
 
-    await prisma.userData.update({
+    const userData = await prisma.userData.update({
       where: { userId: req.user!.id },
       data: {
         referenceCheckStatus: status,
@@ -167,6 +173,9 @@ export const updateReferenceCheckStatus = async (
     res.json({
       success: true,
       message: 'Status updated',
+      data: {
+        referenceCheckStatus: userData.referenceCheckStatus,
+      },
     });
   } catch (error) {
     next(error);

@@ -4,11 +4,40 @@ import { AuthRequest } from '../types';
 import { Response, NextFunction } from 'express';
 import prisma from '../config/database';
 import { AppError } from '../utils/errors';
+import { body } from 'express-validator';
+import { validate } from '../middleware/validation';
 
 const router = Router();
 
 // All routes require authentication
 router.use(authenticate);
+
+// Validation middleware for reference creation
+const referenceValidation = [
+  body('name').trim().notEmpty().withMessage('Name is required'),
+  body('email').trim().isEmail().withMessage('Valid email is required').normalizeEmail(),
+  body('phone').trim().notEmpty().withMessage('Phone is required'),
+  body('company').trim().notEmpty().withMessage('Company is required'),
+  body('position').trim().notEmpty().withMessage('Position is required'),
+  body('relationship').trim().notEmpty().withMessage('Relationship is required'),
+];
+
+// Middleware to check max 5 references
+const checkReferenceLimit = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    const count = await prisma.reference.count({
+      where: { userId: req.user!.id },
+    });
+    
+    if (count >= 5) {
+      throw new AppError('Maximum of 5 references allowed', 400, 'LIMIT_EXCEEDED');
+    }
+    
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
 
 // Get all references
 router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -28,9 +57,18 @@ router.get('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
 });
 
 // Add reference
-router.post('/', async (req: AuthRequest, res: Response, next: NextFunction) => {
+router.post('/', validate(referenceValidation), checkReferenceLimit, async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { name, email, company, position, relationship, phone } = req.body;
+
+    // Verify user exists
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+    });
+
+    if (!user) {
+      throw new AppError('User not found', 404, 'USER_NOT_FOUND');
+    }
 
     const reference = await prisma.reference.create({
       data: {
@@ -96,6 +134,11 @@ router.delete('/:referenceId', async (req: AuthRequest, res: Response, next: Nex
       throw new AppError('Reference not found', 404, 'NOT_FOUND');
     }
 
+    // Check if reference has been submitted
+    if (existing.status === 'email-sent' || existing.status === 'sent' || existing.submittedAt) {
+      throw new AppError('Cannot delete submitted references', 400, 'SUBMITTED_REFERENCE');
+    }
+
     await prisma.reference.delete({
       where: { id: referenceId },
     });
@@ -114,12 +157,16 @@ router.post('/submit', async (req: AuthRequest, res: Response, next: NextFunctio
   try {
     const { referenceIds } = req.body;
 
+    // Validate at least 1 reference
+    if (!referenceIds || referenceIds.length === 0) {
+      throw new AppError('At least 1 reference is required', 400, 'NO_REFERENCES');
+    }
+
     // Update status to email-sent
     await prisma.reference.updateMany({
       where: {
         id: { in: referenceIds },
-        userId: req.user!.id,
-      },
+        userId: req.user!.id },
       data: {
         status: 'email-sent',
         submittedAt: new Date(),
@@ -138,6 +185,7 @@ router.post('/submit', async (req: AuthRequest, res: Response, next: NextFunctio
     res.json({
       success: true,
       data: {
+        submitted: referenceIds.length,
         emailsSent: referenceIds.length,
         failedEmails: [],
       },
@@ -171,12 +219,11 @@ router.get('/summary', async (req: AuthRequest, res: Response, next: NextFunctio
     });
 
     const summary = {
-      totalReferences: references.length,
-      responsesReceived: references.filter(
-        r => r.status === 'response-received' || r.status === 'verified'
-      ).length,
+      total: references.length,
+      draft: references.filter(r => r.status === 'draft').length,
+      sent: references.filter(r => r.status === 'email-sent' || r.status === 'sent').length,
+      completed: references.filter(r => r.status === 'response-received').length,
       verified: references.filter(r => r.status === 'verified').length,
-      pending: references.filter(r => r.status === 'email-sent' || r.status === 'pending').length,
     };
 
     res.json({

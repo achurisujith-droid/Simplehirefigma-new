@@ -17,7 +17,7 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
     });
 
     if (existingUser) {
-      throw new AppError('Email already registered', 409, 'DUPLICATE_EMAIL');
+      throw new AppError('email already registered', 400, 'DUPLICATE_EMAIL');
     }
 
     // Hash password
@@ -110,14 +110,22 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     // Hash refresh token before storing (SHA-256)
     const hashedRefreshToken = sha256Hash(refreshToken);
 
-    // Store hashed refresh token
-    await prisma.refreshToken.create({
-      data: {
-        token: hashedRefreshToken,
-        userId: user.id,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      },
-    });
+    // Store hashed refresh token (with error handling for foreign key constraint)
+    try {
+      await prisma.refreshToken.create({
+        data: {
+          token: hashedRefreshToken,
+          userId: user.id,
+          expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        },
+      });
+    } catch (error: any) {
+      // Handle foreign key constraint error (user was deleted)
+      if (error.code === 'P2003') {
+        throw new AppError('Invalid credentials', 401, 'INVALID_CREDENTIALS');
+      }
+      throw error;
+    }
 
     // Log login event
     logger.info(`User logged in: ${user.email}`, { userId: user.id });
@@ -147,8 +155,16 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
       throw new AppError('Refresh token required', 400, 'MISSING_TOKEN');
     }
 
-    // Verify refresh token JWT
-    const decoded = verifyRefreshToken(refreshToken);
+    // Verify refresh token JWT - wrap in try-catch for JWT errors
+    let decoded;
+    try {
+      decoded = verifyRefreshToken(refreshToken);
+    } catch (error: any) {
+      if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') {
+        throw new AppError('Invalid or expired refresh token', 401, 'INVALID_TOKEN');
+      }
+      throw error;
+    }
 
     // Hash the provided refresh token to match stored hash
     const hashedRefreshToken = sha256Hash(refreshToken);

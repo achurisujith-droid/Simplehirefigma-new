@@ -45,8 +45,10 @@ afterEach(async () => {
     await prisma.refreshToken.deleteMany();
     await prisma.userData.deleteMany();
   } catch (error) {
-    // Ignore cleanup errors
-    console.warn('Warning: afterEach cleanup error:', error);
+    // Log cleanup errors for debugging, but don't fail the test
+    if (error instanceof Error) {
+      console.warn('Warning: afterEach cleanup error:', error.message);
+    }
   }
 });
 
@@ -57,12 +59,13 @@ afterAll(async () => {
     await new Promise((resolve) => setTimeout(resolve, 100));
     await prisma.$disconnect();
   } catch (error) {
-    console.error('Error disconnecting Prisma:', error);
+    console.error('Error disconnecting Prisma:', error instanceof Error ? error.message : error);
     // Force disconnect if normal disconnect fails
     try {
       await prisma.$disconnect();
-    } catch (e) {
-      // Ignore secondary errors
+    } catch (secondError) {
+      // Log secondary error but don't throw
+      console.error('Secondary disconnect error:', secondError instanceof Error ? secondError.message : secondError);
     }
   }
 });

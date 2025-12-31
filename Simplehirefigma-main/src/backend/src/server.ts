@@ -116,7 +116,6 @@ app.get('/', async (req, res) => {
     message: 'Simplehire Backend API is running',
     version: '1.0.0',
     timestamp: new Date().toISOString(),
-    health: health,
   });
 });
 
@@ -199,7 +198,7 @@ async function verifyDatabaseConnection(): Promise<void> {
  */
 function startHttpServer(): any {
   const PORT = config.port;
-  const server = app.listen(PORT, () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     logger.info('='.repeat(60));
     logger.info('✓ Simplehire Backend Server Started Successfully');
     logger.info('='.repeat(60));

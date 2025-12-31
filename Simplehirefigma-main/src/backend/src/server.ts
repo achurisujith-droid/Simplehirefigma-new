@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import compression from 'compression';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
+import path from 'path';
 import config from './config';
 import logger from './config/logger';
 import { testDatabaseConnection, checkDatabaseHealth, disconnectDatabase } from './config/database';
@@ -109,16 +110,6 @@ app.get('/health', async (req, res) => {
   }
 });
 
-// Root endpoint
-app.get('/', async (req, res) => {
-  res.json({
-    success: true,
-    message: 'Simplehire Backend API is running',
-    version: '1.0.0',
-    timestamp: new Date().toISOString(),
-  });
-});
-
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
@@ -131,6 +122,19 @@ app.use('/api/references', referenceRoutes);
 app.use('/api/certificates', certificateRoutes);
 app.use('/api/session', sessionRoutes);
 app.use('/api/proctoring', authenticate, proctoringRoutes);
+
+// Serve static frontend files (production only)
+if (config.nodeEnv === 'production') {
+  const frontendPath = path.join(__dirname, '..', 'public');
+  
+  // Serve static files
+  app.use(express.static(frontendPath));
+  
+  // SPA fallback - serve index.html for all non-API routes
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(frontendPath, 'index.html'));
+  });
+}
 
 // 404 handler
 app.use(notFoundHandler);

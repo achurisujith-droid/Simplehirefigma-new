@@ -8,11 +8,14 @@ RUN apk add --no-cache python3 make g++
 
 # Copy package files
 COPY package*.json ./
+COPY Simplehirefigma-main/package*.json ./Simplehirefigma-main/
 COPY Simplehirefigma-main/src/backend/package*.json ./Simplehirefigma-main/src/backend/
 COPY Simplehirefigma-main/src/backend/prisma ./Simplehirefigma-main/src/backend/prisma/
 
 # CRITICAL: Nuclear option - remove EVERYTHING
 RUN rm -rf node_modules package-lock.json dist .npm .cache && \
+    rm -rf Simplehirefigma-main/node_modules && \
+    rm -rf Simplehirefigma-main/dist && \
     rm -rf Simplehirefigma-main/src/backend/node_modules && \
     rm -rf Simplehirefigma-main/src/backend/dist && \
     npm cache clean --force && \
@@ -20,6 +23,10 @@ RUN rm -rf node_modules package-lock.json dist .npm .cache && \
 
 # Install root dependencies
 # Cache bust: Dec 30 2025 1520
+RUN npm install
+
+# Install frontend dependencies
+WORKDIR /app/Simplehirefigma-main
 RUN npm install
 
 # Install backend dependencies
@@ -32,6 +39,12 @@ RUN npx prisma generate
 # Copy ALL source code
 WORKDIR /app
 COPY . .
+
+# Build frontend
+WORKDIR /app/Simplehirefigma-main
+RUN rm -rf dist
+RUN npm run build 2>&1 | tee frontend-build.log
+RUN test -d dist || (echo "ERROR: Frontend dist directory missing!" && cat frontend-build.log && exit 1)
 
 # Build backend
 WORKDIR /app/Simplehirefigma-main/src/backend
@@ -60,16 +73,17 @@ COPY --from=builder /app/Simplehirefigma-main/src/backend/node_modules ./node_mo
 COPY --from=builder /app/Simplehirefigma-main/src/backend/package*.json ./
 COPY --from=builder /app/Simplehirefigma-main/src/backend/prisma ./prisma
 COPY --from=builder /app/Simplehirefigma-main/src/backend/scripts ./scripts
+COPY --from=builder /app/Simplehirefigma-main/dist ./public
 
 # Runtime verification
 RUN node -e "try { require('./dist/utils/errors'); console.log('✓ errors.js loads successfully'); } catch(e) { console.error('✗ errors.js failed to load:', e); process.exit(1); }"
 
 # Expose port
-EXPOSE 3000
+EXPOSE 8080
 
 # Health check
 HEALTHCHECK --interval=10s --timeout=5s --start-period=40s --retries=3 \
-  CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+  CMD node -e "const http = require('http'); http.get('http://localhost:' + (process.env.PORT || '8080') + '/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }).on('error', () => { process.exit(1); });"
 
 # Start server with verification
 CMD ["sh", "-c", "npx prisma migrate deploy && node scripts/verify-runtime.js && node dist/server.js"]

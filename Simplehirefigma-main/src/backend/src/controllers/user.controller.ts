@@ -38,6 +38,7 @@ export const getUserData = async (req: AuthRequest, res: Response, next: NextFun
     res.json({
       success: true,
       data: {
+        userId: user.id,
         id: user.id,
         email: user.email,
         name: user.name,

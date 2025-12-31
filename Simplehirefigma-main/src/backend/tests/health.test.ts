@@ -4,7 +4,7 @@
 
 import request from 'supertest';
 import app from '../src/server';
-import { prisma } from './setup';
+import prisma from '../src/config/database';
 
 describe('Health Check API', () => {
   describe('GET /health', () => {
@@ -35,9 +35,7 @@ describe('Health Check API', () => {
       try {
         await prisma.$disconnect();
         
-        // Small delay to ensure disconnect is complete
-        await new Promise((resolve) => setTimeout(resolve, 100));
-
+        // Make the health check request immediately while still disconnected
         const response = await request(app).get('/health').expect(200);
 
         expect(response.body.success).toBe(true);

@@ -15,6 +15,8 @@ describe('Authentication API', () => {
 
   beforeEach(async () => {
     // Clean users before each test
+    await prisma.refreshToken.deleteMany({});
+    await prisma.userData.deleteMany({});
     await prisma.user.deleteMany({});
   });
 

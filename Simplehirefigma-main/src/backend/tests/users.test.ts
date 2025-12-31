@@ -17,7 +17,9 @@ describe('User API', () => {
   };
 
   beforeEach(async () => {
-    // Clean database
+    // Clean database - delete refresh tokens first, then userData, then users
+    await prisma.refreshToken.deleteMany({});
+    await prisma.userData.deleteMany({});
     await prisma.user.deleteMany({});
 
     // Create and login user

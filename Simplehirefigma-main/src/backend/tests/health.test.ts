@@ -40,8 +40,17 @@ describe('Health Check API', () => {
         expect(response.body.success).toBe(true);
         expect(response.body.services.database).toBe(false);
       } finally {
-        // Ensure reconnect happens in finally block
-        await prisma.$connect();
+        // Ensure reconnect happens in finally block with retry logic
+        try {
+          await prisma.$connect();
+          // Wait a bit to ensure connection is fully established
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        } catch (error) {
+          console.error('Error reconnecting Prisma:', error);
+          // Retry once more if first attempt fails
+          await new Promise((resolve) => setTimeout(resolve, 200));
+          await prisma.$connect();
+        }
       }
     });
 

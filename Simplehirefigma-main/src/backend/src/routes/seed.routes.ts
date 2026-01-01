@@ -1,5 +1,5 @@
 import express from 'express';
-import { prisma } from '../config/database';
+import prisma from '../config/database';
 import { hashPassword } from '../utils/password';
 
 const seedRouter = express.Router();

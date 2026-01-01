@@ -6,6 +6,7 @@ import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '.
 import { AppError } from '../utils/errors';
 import { sha256Hash } from '../utils/crypto';
 import logger from '../config/logger';
+import config, { getSessionCookieOptions } from '../config';
 
 export const signup = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -73,13 +74,7 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
     logger.info(`User signed up: ${user.email}`, { userId: user.id });
 
     // Set HTTP-only session cookie
-    res.cookie('session', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      path: '/',
-    });
+    res.cookie(config.cookie.name, token, getSessionCookieOptions());
 
     res.status(201).json({
       success: true,
@@ -148,13 +143,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     logger.info(`User logged in: ${user.email}`, { userId: user.id });
 
     // Set HTTP-only session cookie
-    res.cookie('session', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      path: '/',
-    });
+    res.cookie(config.cookie.name, token, getSessionCookieOptions());
 
     res.json({
       success: true,
@@ -245,13 +234,7 @@ export const logout = async (req: AuthRequest, res: Response, next: NextFunction
     });
 
     // Clear the session cookie
-    res.cookie('session', '', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 0,
-      path: '/',
-    });
+    res.cookie(config.cookie.name, '', getSessionCookieOptions(true));
 
     res.json({
       success: true,

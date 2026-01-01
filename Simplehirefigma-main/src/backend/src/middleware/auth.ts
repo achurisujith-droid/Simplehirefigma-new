@@ -15,8 +15,8 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
     }
     
     // Fallback to session cookie
-    if (!token && req.cookies?.session) {
-      token = req.cookies.session;
+    if (!token && req.cookies?.[config.cookie.name]) {
+      token = req.cookies[config.cookie.name];
     }
 
     if (!token) {
@@ -54,8 +54,8 @@ export const optionalAuth = (req: AuthRequest, res: Response, next: NextFunction
     }
     
     // Fallback to session cookie
-    if (!token && req.cookies?.session) {
-      token = req.cookies.session;
+    if (!token && req.cookies?.[config.cookie.name]) {
+      token = req.cookies[config.cookie.name];
     }
 
     if (!token) {

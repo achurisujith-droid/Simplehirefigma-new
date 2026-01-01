@@ -29,8 +29,7 @@ import proctoringRoutes from './modules/proctoring/proctoring.routes';
 validateEnvironmentOrExit();
 
 const app = express();
-app.set('trust proxy', true);
-
+app.set('trust proxy', 'loopback');
 // Security middleware
 app.use(helmet());
 

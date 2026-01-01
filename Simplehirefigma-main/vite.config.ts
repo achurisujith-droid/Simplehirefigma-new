@@ -56,5 +56,12 @@
     server: {
       port: 3000,
       open: true,
+          proxy: {
+      '/api': {
+        target: 'https://simplehire1.up.railway.app',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+    },
     },
   });

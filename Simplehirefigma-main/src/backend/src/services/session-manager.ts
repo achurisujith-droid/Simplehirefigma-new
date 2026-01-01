@@ -114,11 +114,11 @@ export class SessionManager {
       try {
         const data = await redisClient.get(`session:${sessionId}`);
         if (data) {
-          const session = JSON.parse(data);
+          const session = JSON.parse(data) as InterviewSession;
           // Convert date strings back to Date objects
           session.createdAt = new Date(session.createdAt);
           session.updatedAt = new Date(session.updatedAt);
-          session.answers = session.answers.map((a: any) => ({
+          session.answers = session.answers.map((a: VoiceAnswer) => ({
             ...a,
             timestamp: new Date(a.timestamp),
           }));

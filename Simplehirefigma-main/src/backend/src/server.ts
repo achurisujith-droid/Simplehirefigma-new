@@ -307,7 +307,9 @@ function setupGracefulShutdown(server: any): void {
 function setupSessionCleanup(): void {
   // Clean up old sessions every hour
   setInterval(() => {
-    sessionManager.cleanupOldSessions();
+    sessionManager.cleanupOldSessions().catch((error) => {
+      logger.error('Session cleanup error', error);
+    });
   }, 60 * 60 * 1000); // Every hour
   
   logger.info('Session cleanup will run every hour');

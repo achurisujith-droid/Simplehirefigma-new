@@ -2,11 +2,13 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Separator } from "./ui/separator";
 import { Checkbox } from "./ui/checkbox";
-import { Award } from "lucide-react";
+import { Award, AlertCircle } from "lucide-react";
 import { useState } from "react";
+import { useAuthStore } from "../src/store/authStore";
+import { toast } from "sonner@2.0.3";
 
 interface SignupPageProps {
-  onSignup: (user: { email: string; name: string; id: string }) => void;
+  onSignup: () => void;
   onNavigateToLogin: () => void;
 }
 
@@ -17,25 +19,72 @@ export function SignupPage({ onSignup, onNavigateToLogin }: SignupPageProps) {
     password: "",
     agreeToTerms: false
   });
+  const [fieldErrors, setFieldErrors] = useState<{ fullName?: string; email?: string; password?: string; terms?: string }>({});
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const { signup, isLoading, error: authError, clearError } = useAuthStore();
+
+  const validateForm = () => {
+    const errors: typeof fieldErrors = {};
+    
+    if (!formData.fullName || formData.fullName.length < 2) {
+      errors.fullName = "Name must be at least 2 characters";
+    }
+    
+    if (!formData.email) {
+      errors.email = "Email is required";
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      errors.email = "Please enter a valid email";
+    }
+    
+    if (!formData.password) {
+      errors.password = "Password is required";
+    } else if (formData.password.length < 6) {
+      errors.password = "Password must be at least 6 characters";
+    }
+    
+    if (!formData.agreeToTerms) {
+      errors.terms = "You must agree to the terms";
+    }
+    
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.agreeToTerms && formData.fullName && formData.email) {
-      onSignup({
-        email: formData.email,
-        name: formData.fullName,
-        id: `user_${Date.now()}` // Generate a simple ID
+    
+    if (!validateForm()) {
+      return;
+    }
+
+    const result = await signup(formData.email, formData.password, formData.fullName);
+    
+    if (result.success) {
+      toast.success("Account created!", {
+        description: "Welcome to Simplehire",
+      });
+      onSignup();
+    } else {
+      toast.error("Signup failed", {
+        description: result.error || "Please try again",
       });
     }
   };
 
-  const handleGoogleSignup = () => {
-    // Mock Google signup with demo data
-    onSignup({
-      email: "user@gmail.com",
-      name: "John Doe",
-      id: `user_${Date.now()}`
+  const handleGoogleSignup = async () => {
+    toast.info("Google OAuth not yet implemented", {
+      description: "Please use email/password signup",
     });
+  };
+
+  const handleInputChange = (field: keyof typeof formData) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (field === 'agreeToTerms') {
+      setFormData(prev => ({ ...prev, [field]: !prev.agreeToTerms }));
+    } else {
+      setFormData(prev => ({ ...prev, [field]: e.target.value }));
+    }
+    setFieldErrors(prev => ({ ...prev, [field]: undefined }));
+    clearError();
   };
 
   return (
@@ -98,11 +147,22 @@ export function SignupPage({ onSignup, onNavigateToLogin }: SignupPageProps) {
 
           {/* Signup form */}
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8">
+            {/* Error Message */}
+            {authError && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3 mb-4">
+                <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-sm text-red-800">{authError}</p>
+                </div>
+              </div>
+            )}
+
             {/* Google signup */}
             <Button
               onClick={handleGoogleSignup}
               variant="outline"
               className="w-full mb-6"
+              disabled={isLoading}
             >
               <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
                 <path
@@ -143,9 +203,12 @@ export function SignupPage({ onSignup, onNavigateToLogin }: SignupPageProps) {
                   type="text"
                   placeholder="John Doe"
                   value={formData.fullName}
-                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                  onChange={handleInputChange('fullName')}
                   required
                 />
+                {fieldErrors.fullName && (
+                  <p className="text-sm text-red-600 mt-1">{fieldErrors.fullName}</p>
+                )}
               </div>
 
               {/* Email */}
@@ -157,9 +220,12 @@ export function SignupPage({ onSignup, onNavigateToLogin }: SignupPageProps) {
                   type="email"
                   placeholder="you@example.com"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={handleInputChange('email')}
                   required
                 />
+                {fieldErrors.email && (
+                  <p className="text-sm text-red-600 mt-1">{fieldErrors.email}</p>
+                )}
               </div>
 
               {/* Password */}
@@ -171,42 +237,48 @@ export function SignupPage({ onSignup, onNavigateToLogin }: SignupPageProps) {
                   type="password"
                   placeholder="Create a strong password"
                   value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  onChange={handleInputChange('password')}
                   required
                 />
                 <p className="text-xs text-slate-500 mt-1">
-                  Must be at least 8 characters
+                  Must be at least 6 characters
                 </p>
+                {fieldErrors.password && (
+                  <p className="text-sm text-red-600 mt-1">{fieldErrors.password}</p>
+                )}
               </div>
 
               {/* Terms checkbox */}
-              <div className="flex items-start gap-2">
-                <Checkbox
-                  id="terms"
-                  checked={formData.agreeToTerms}
-                  onCheckedChange={(checked) => 
-                    setFormData({ ...formData, agreeToTerms: checked as boolean })
-                  }
-                />
-                <label htmlFor="terms" className="text-sm text-slate-600 leading-tight cursor-pointer">
-                  I agree to the{" "}
-                  <a href="#" className="text-blue-600 hover:text-blue-700">
-                    Terms of Service
-                  </a>{" "}
-                  and{" "}
-                  <a href="#" className="text-blue-600 hover:text-blue-700">
-                    Privacy Policy
-                  </a>
-                </label>
+              <div>
+                <div className="flex items-start gap-2">
+                  <Checkbox
+                    id="terms"
+                    checked={formData.agreeToTerms}
+                    onCheckedChange={handleInputChange('agreeToTerms')}
+                  />
+                  <label htmlFor="terms" className="text-sm text-slate-600 leading-tight cursor-pointer">
+                    I agree to the{" "}
+                    <a href="#" className="text-blue-600 hover:text-blue-700">
+                      Terms of Service
+                    </a>{" "}
+                    and{" "}
+                    <a href="#" className="text-blue-600 hover:text-blue-700">
+                      Privacy Policy
+                    </a>
+                  </label>
+                </div>
+                {fieldErrors.terms && (
+                  <p className="text-sm text-red-600 mt-1">{fieldErrors.terms}</p>
+                )}
               </div>
 
               {/* Submit button */}
               <Button
                 type="submit"
-                disabled={!formData.agreeToTerms}
+                disabled={isLoading || !formData.agreeToTerms}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white"
               >
-                Create account
+                {isLoading ? "Creating account..." : "Create account"}
               </Button>
             </form>
           </div>

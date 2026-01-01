@@ -15,6 +15,9 @@ import { PublicCertificateView } from "./components/public-certificate-view";
 import { LoginPage } from "./components/login-page";
 import { SignupPage } from "./components/signup-page";
 import { TopBar } from "./components/top-bar";
+import { useAuthStore } from "./src/store/authStore";
+import { userService } from "./src/services/user.service";
+import { toast } from "sonner@2.0.3";
 
 // Lazy load heavy pages
 const IdVerificationPage = lazy(() => import("./components/id-verification-page").then(m => ({ default: m.IdVerificationPage })));
@@ -32,19 +35,23 @@ type InterviewProgress = {
 
 type VerificationStatus = "not-started" | "in-progress" | "pending" | "verified";
 
+type UserData = {
+  purchasedProducts: string[];
+  interviewProgress: InterviewProgress;
+  idVerificationStatus: VerificationStatus;
+  referenceCheckStatus: VerificationStatus;
+  references: ReferenceItem[];
+};
+
 export default function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentUser, setCurrentUser] = useState<{ email: string; name: string; id: string } | null>(null);
-  const [purchasedProducts, setPurchasedProducts] = useState<string[]>([]);
-  const [interviewProgress, setInterviewProgress] = useState<InterviewProgress>({
-    documentsUploaded: false,
-    voiceInterview: false,
-    mcqTest: false,
-    codingChallenge: false,
-  });
-  const [idVerificationStatus, setIdVerificationStatus] = useState<VerificationStatus>("not-started");
-  const [referenceCheckStatus, setReferenceCheckStatus] = useState<VerificationStatus>("not-started");
-  const [references, setReferences] = useState<ReferenceItem[]>([]);
+  // Auth state from store
+  const { isAuthenticated, user, isLoading: authLoading, bootstrap, logout: authLogout } = useAuthStore();
+  
+  // User data state (fetched from backend)
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [isLoadingData, setIsLoadingData] = useState(false);
+  
+  // UI state
   const [authPage, setAuthPage] = useState<"login" | "signup">("login");
   const [selectedPlan, setSelectedPlan] = useState<{
     id: string;
@@ -53,151 +60,97 @@ export default function App() {
   } | null>(null);
   const [currentPage, setCurrentPage] = useState<"Dashboard" | "My products" | "Certificates" | "Help" | "InterviewDocUpload" | "InterviewPrep" | "InterviewLive" | "InterviewStepComplete" | "McqTest" | "CodingChallenge" | "InterviewEval" | "InterviewCert" | "IdVerification" | "IdSubmitted" | "ReferenceCheck" | "ReferenceSubmitted">("Dashboard");
 
-  // Check localStorage on mount for existing session
+  // Bootstrap authentication on mount
   useEffect(() => {
-    const storedUser = localStorage.getItem('currentUser');
-    if (storedUser) {
-      try {
-        const userData = JSON.parse(storedUser);
-        setCurrentUser({ email: userData.email, name: userData.name, id: userData.id });
-        setPurchasedProducts(userData.purchasedProducts || []);
-        setInterviewProgress(userData.interviewProgress || {
-          documentsUploaded: false,
-          voiceInterview: false,
-          mcqTest: false,
-          codingChallenge: false,
-        });
-        setIdVerificationStatus(userData.idVerificationStatus || "not-started");
-        setReferenceCheckStatus(userData.referenceCheckStatus || "not-started");
-        // Load submitted references or draft references (whichever is more recent)
-        setReferences(userData.references || userData.draftReferences || []);
-        setIsAuthenticated(true);
-        
-        // Navigate based on purchased products
-        if (userData.purchasedProducts && userData.purchasedProducts.length > 0) {
-          // User has purchased products, skip to My Products
-          setCurrentPage("My products");
-        } else {
-          // User has no products, show Dashboard (plans page)
-          setCurrentPage("Dashboard");
-        }
-      } catch (error) {
-        console.error('Error parsing stored user data:', error);
-        localStorage.removeItem('currentUser');
-      }
-    }
-  }, []);
+    bootstrap();
+  }, [bootstrap]);
 
-  // Save state to localStorage whenever key data changes
+  // Fetch user data when authenticated
   useEffect(() => {
-    if (isAuthenticated && currentUser) {
-      const userData = {
-        email: currentUser.email,
-        name: currentUser.name,
-        id: currentUser.id,
-        purchasedProducts,
-        interviewProgress,
-        idVerificationStatus,
-        referenceCheckStatus,
-        references,
-      };
-      localStorage.setItem('currentUser', JSON.stringify(userData));
-    }
-  }, [isAuthenticated, currentUser, purchasedProducts, interviewProgress, idVerificationStatus, referenceCheckStatus, references]);
-
-  const handleLogin = (user: { email: string; name: string; id: string }) => {
-    setCurrentUser(user);
-    setIsAuthenticated(true);
-    
-    // Load user's data from localStorage
-    const storedUser = localStorage.getItem('currentUser');
-    if (storedUser) {
-      try {
-        const userData = JSON.parse(storedUser);
-        setPurchasedProducts(userData.purchasedProducts || []);
-        setInterviewProgress(userData.interviewProgress || {
-          documentsUploaded: false,
-          voiceInterview: false,
-          mcqTest: false,
-          codingChallenge: false,
-        });
-        setIdVerificationStatus(userData.idVerificationStatus || "not-started");
-        setReferenceCheckStatus(userData.referenceCheckStatus || "not-started");
-        setReferences(userData.references || []);
-        
-        // Navigate based on purchased products
-        if (userData.purchasedProducts && userData.purchasedProducts.length > 0) {
-          // User has purchased products, skip to My Products
-          setCurrentPage("My products");
-        } else {
-          // User has no products, show Dashboard (plans page)
-          setCurrentPage("Dashboard");
-        }
-      } catch (error) {
-        console.error('Error loading user data:', error);
-        setCurrentPage("Dashboard");
-      }
+    if (isAuthenticated && user) {
+      fetchUserData();
     } else {
-      // No stored data, show Dashboard
-      setCurrentPage("Dashboard");
+      setUserData(null);
+    }
+  }, [isAuthenticated, user]);
+
+  const fetchUserData = async () => {
+    try {
+      setIsLoadingData(true);
+      const response = await userService.getUserData();
+      
+      if (response.success && response.data) {
+        setUserData({
+          purchasedProducts: response.data.purchasedProducts || [],
+          interviewProgress: response.data.interviewProgress || {
+            documentsUploaded: false,
+            voiceInterview: false,
+            mcqTest: false,
+            codingChallenge: false,
+          },
+          idVerificationStatus: response.data.idVerificationStatus || "not-started",
+          referenceCheckStatus: response.data.referenceCheckStatus || "not-started",
+          references: response.data.references || [],
+        });
+        
+        // Navigate to appropriate page based on products
+        if (response.data.purchasedProducts && response.data.purchasedProducts.length > 0) {
+          setCurrentPage("My products");
+        } else {
+          setCurrentPage("Dashboard");
+        }
+      } else {
+        toast.error("Failed to load user data", {
+          description: response.error || "Please try again",
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching user data:", error);
+      toast.error("Failed to load user data");
+    } finally {
+      setIsLoadingData(false);
     }
   };
 
-  const handleSignup = (user: { email: string; name: string; id: string }) => {
-    setCurrentUser(user);
-    setIsAuthenticated(true);
-    setCurrentPage("Dashboard");
-    
-    // Save to localStorage
-    localStorage.setItem('currentUser', JSON.stringify({
-      ...user,
-      purchasedProducts: [],
-      interviewProgress: {
-        documentsUploaded: false,
-        voiceInterview: false,
-        mcqTest: false,
-        codingChallenge: false,
-      },
-      idVerificationStatus: "not-started",
-      referenceCheckStatus: "not-started",
-      references: [],
-    }));
-  };
-
-  const handleLogout = () => {
-    // Clear all user data
-    setIsAuthenticated(false);
-    setCurrentUser(null);
-    setPurchasedProducts([]);
-    setInterviewProgress({
-      documentsUploaded: false,
-      voiceInterview: false,
-      mcqTest: false,
-      codingChallenge: false,
-    });
-    setIdVerificationStatus("not-started");
-    setReferenceCheckStatus("not-started");
+  const handleLogout = async () => {
+    await authLogout();
+    setUserData(null);
     setSelectedPlan(null);
     setCurrentPage("Dashboard");
     setAuthPage("login");
-    
-    // Clear localStorage
-    localStorage.removeItem('currentUser');
   };
+
+  // Loading state
+  if (authLoading || (isAuthenticated && isLoadingData)) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Handle login/signup
   if (!isAuthenticated) {
     if (authPage === "login") {
       return (
         <LoginPage
-          onLogin={handleLogin}
+          onLogin={() => {
+            // Auth store handles login, just navigate
+            setAuthPage("login");
+          }}
           onNavigateToSignup={() => setAuthPage("signup")}
         />
       );
     } else {
       return (
         <SignupPage
-          onSignup={handleSignup}
+          onSignup={() => {
+            // Auth store handles signup, just navigate
+            setAuthPage("login");
+          }}
           onNavigateToLogin={() => setAuthPage("login")}
         />
       );
@@ -209,44 +162,48 @@ export default function App() {
     return (
       <PaymentPage
         selectedPlan={selectedPlan}
-        onPaymentSuccess={() => {
-          // Add the purchased product to the list
-          if (selectedPlan.id === "combo") {
-            // If combo is purchased, add all three products
-            setPurchasedProducts(["skill", "id-visa", "reference"]);
-          } else if (!purchasedProducts.includes(selectedPlan.id)) {
-            // Add individual product if not already purchased
-            setPurchasedProducts([...purchasedProducts, selectedPlan.id]);
-          }
+        onPaymentSuccess={async () => {
+          // Payment successful - refetch user data from backend
+          await fetchUserData();
           setSelectedPlan(null);
           setCurrentPage("My products");
+          toast.success("Purchase successful!", {
+            description: "Your verification has been activated.",
+          });
         }}
         onBack={() => setSelectedPlan(null)}
       />
     );
   }
 
-  const handleVoiceInterviewComplete = () => {
-    setInterviewProgress({ ...interviewProgress, voiceInterview: true });
+  // Helper functions for interview flow
+  const handleVoiceInterviewComplete = async () => {
+    const newProgress = { ...userData!.interviewProgress, voiceInterview: true };
+    setUserData({ ...userData!, interviewProgress: newProgress });
+    await userService.updateInterviewProgress(newProgress);
     setCurrentPage("InterviewStepComplete");
   };
 
-  const handleMcqTestComplete = () => {
-    setInterviewProgress({ ...interviewProgress, mcqTest: true });
+  const handleMcqTestComplete = async () => {
+    const newProgress = { ...userData!.interviewProgress, mcqTest: true };
+    setUserData({ ...userData!, interviewProgress: newProgress });
+    await userService.updateInterviewProgress(newProgress);
     setCurrentPage("InterviewStepComplete");
   };
 
-  const handleCodingChallengeComplete = () => {
-    setInterviewProgress({ ...interviewProgress, codingChallenge: true });
+  const handleCodingChallengeComplete = async () => {
+    const newProgress = { ...userData!.interviewProgress, codingChallenge: true };
+    setUserData({ ...userData!, interviewProgress: newProgress });
+    await userService.updateInterviewProgress(newProgress);
     setCurrentPage("InterviewEval");
   };
 
   const getCurrentStepNumber = () => {
     // Returns the step that was just completed
-    if (!interviewProgress.documentsUploaded) return 0; // Not started
-    if (!interviewProgress.voiceInterview) return 1; // Docs completed
-    if (!interviewProgress.mcqTest) return 2; // Voice completed
-    if (!interviewProgress.codingChallenge) return 3; // MCQ completed
+    if (!userData?.interviewProgress.documentsUploaded) return 0; // Not started
+    if (!userData?.interviewProgress.voiceInterview) return 1; // Docs completed
+    if (!userData?.interviewProgress.mcqTest) return 2; // Voice completed
+    if (!userData?.interviewProgress.codingChallenge) return 3; // MCQ completed
     return 4; // All completed
   };
 
@@ -260,14 +217,13 @@ export default function App() {
   };
 
   const handleContinueAfterStep = () => {
-    if (!interviewProgress.documentsUploaded) {
-      // This shouldn't happen
+    if (!userData?.interviewProgress.documentsUploaded) {
       setCurrentPage("InterviewPrep");
-    } else if (!interviewProgress.voiceInterview) {
+    } else if (!userData?.interviewProgress.voiceInterview) {
       setCurrentPage("InterviewLive");
-    } else if (!interviewProgress.mcqTest) {
+    } else if (!userData?.interviewProgress.mcqTest) {
       setCurrentPage("McqTest");
-    } else if (!interviewProgress.codingChallenge) {
+    } else if (!userData?.interviewProgress.codingChallenge) {
       setCurrentPage("CodingChallenge");
     } else {
       setCurrentPage("InterviewEval");
@@ -280,34 +236,40 @@ export default function App() {
 
   const handleStartOrContinueInterview = () => {
     // Check where the user left off and resume from there
-    if (!interviewProgress.documentsUploaded) {
-      // Start from document upload
+    if (!userData?.interviewProgress.documentsUploaded) {
       setCurrentPage("InterviewDocUpload");
-    } else if (!interviewProgress.voiceInterview) {
-      // Resume at voice interview prep
+    } else if (!userData?.interviewProgress.voiceInterview) {
       setCurrentPage("InterviewPrep");
-    } else if (!interviewProgress.mcqTest) {
-      // Resume at MCQ test
+    } else if (!userData?.interviewProgress.mcqTest) {
       setCurrentPage("McqTest");
-    } else if (!interviewProgress.codingChallenge) {
-      // Resume at coding challenge
+    } else if (!userData?.interviewProgress.codingChallenge) {
       setCurrentPage("CodingChallenge");
     } else {
-      // All complete, show certificate
       setCurrentPage("InterviewCert");
     }
   };
 
   const renderPage = () => {
+    // Guard - ensure userData is loaded
+    if (!userData) {
+      return (
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+          <div className="text-center">
+            <p className="text-slate-600">Loading user data...</p>
+          </div>
+        </div>
+      );
+    }
+
     switch (currentPage) {
       case "Dashboard":
         return <DashboardPage 
           onSelectPlan={(plan) => setSelectedPlan(plan)}
-          purchasedProducts={purchasedProducts}
-          interviewProgress={interviewProgress}
-          idVerificationStatus={idVerificationStatus}
-          referenceCheckStatus={referenceCheckStatus}
-          references={references}
+          purchasedProducts={userData.purchasedProducts}
+          interviewProgress={userData.interviewProgress}
+          idVerificationStatus={userData.idVerificationStatus}
+          referenceCheckStatus={userData.referenceCheckStatus}
+          references={userData.references}
           onStartInterview={handleStartOrContinueInterview}
           onStartIdVerification={() => setCurrentPage("IdVerification")}
           onStartReferenceCheck={() => setCurrentPage("ReferenceCheck")}
@@ -319,11 +281,11 @@ export default function App() {
         />;
       case "My products":
         return <MyProductsPage 
-          purchasedProducts={purchasedProducts}
-          interviewProgress={interviewProgress}
-          idVerificationStatus={idVerificationStatus}
-          referenceCheckStatus={referenceCheckStatus}
-          references={references}
+          purchasedProducts={userData.purchasedProducts}
+          interviewProgress={userData.interviewProgress}
+          idVerificationStatus={userData.idVerificationStatus}
+          referenceCheckStatus={userData.referenceCheckStatus}
+          references={userData.references}
           onStartInterview={handleStartOrContinueInterview}
           onStartIdVerification={() => setCurrentPage("IdVerification")}
           onStartReferenceCheck={() => setCurrentPage("ReferenceCheck")}
@@ -338,8 +300,10 @@ export default function App() {
       case "InterviewDocUpload":
         return (
           <InterviewDocumentUploadPage 
-            onComplete={() => {
-              setInterviewProgress({ ...interviewProgress, documentsUploaded: true });
+            onComplete={async () => {
+              const newProgress = { ...userData.interviewProgress, documentsUploaded: true };
+              setUserData({ ...userData, interviewProgress: newProgress });
+              await userService.updateInterviewProgress(newProgress);
               setCurrentPage("InterviewPrep");
             }}
           />
@@ -388,32 +352,23 @@ export default function App() {
         return (
           <InterviewCertificatePage 
             onBackToProducts={() => {
-              // Don't reset progress - certificate is earned permanently
               setCurrentPage("My products");
             }}
-            purchasedProducts={purchasedProducts}
-            skillVerified={interviewProgress.voiceInterview && interviewProgress.mcqTest && interviewProgress.codingChallenge}
-            idVerified={idVerificationStatus === "verified"}
-            referenceVerified={referenceCheckStatus === "verified"}
+            purchasedProducts={userData.purchasedProducts}
+            skillVerified={userData.interviewProgress.voiceInterview && userData.interviewProgress.mcqTest && userData.interviewProgress.codingChallenge}
+            idVerified={userData.idVerificationStatus === "verified"}
+            referenceVerified={userData.referenceCheckStatus === "verified"}
           />
         );
       case "IdVerification":
         return (
           <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
             <IdVerificationPage 
-              verificationStatus={idVerificationStatus}
-              onSubmit={() => {
-                // Update verification status to pending (waiting for review)
-                setIdVerificationStatus("pending");
-                
-                // Update localStorage
-                const storedUser = localStorage.getItem('currentUser');
-                if (storedUser) {
-                  const userData = JSON.parse(storedUser);
-                  userData.idVerificationStatus = "pending";
-                  localStorage.setItem('currentUser', JSON.stringify(userData));
-                }
-                
+              verificationStatus={userData.idVerificationStatus}
+              onSubmit={async () => {
+                // Update verification status to pending
+                setUserData({ ...userData, idVerificationStatus: "pending" });
+                await userService.updateIdVerificationStatus("pending");
                 setCurrentPage("IdSubmitted");
               }} 
             />
@@ -429,26 +384,23 @@ export default function App() {
         return (
           <Suspense fallback={<div className="p-8 text-center">Loading...</div>}>
             <ReferenceCheckPage 
-              existingReferences={references}
-              onSubmitReferences={(submittedReferences) => {
-                // Simulate sending emails - update status for each reference
+              existingReferences={userData.references}
+              onSubmitReferences={async (submittedReferences) => {
+                // Update references with email-sent status
                 const referencesWithEmailSent = submittedReferences.map(ref => ({
                   ...ref,
                   status: "email-sent" as const,
                   emailSentDate: new Date().toISOString()
                 }));
                 
-                setReferences(referencesWithEmailSent);
-                setReferenceCheckStatus("pending");
+                setUserData({ 
+                  ...userData, 
+                  references: referencesWithEmailSent,
+                  referenceCheckStatus: "pending"
+                });
                 
-                // Update localStorage
-                const storedUser = localStorage.getItem('currentUser');
-                if (storedUser) {
-                  const userData = JSON.parse(storedUser);
-                  userData.referenceCheckStatus = "pending";
-                  userData.references = referencesWithEmailSent;
-                  localStorage.setItem('currentUser', JSON.stringify(userData));
-                }
+                // TODO: Call backend API to submit references
+                await userService.updateReferenceCheckStatus("pending");
                 
                 setCurrentPage("ReferenceSubmitted");
               }} 
@@ -462,7 +414,17 @@ export default function App() {
           </Suspense>
         );
       default:
-        return <DashboardPage />;
+        return <DashboardPage 
+          onSelectPlan={(plan) => setSelectedPlan(plan)}
+          purchasedProducts={userData.purchasedProducts}
+          interviewProgress={userData.interviewProgress}
+          idVerificationStatus={userData.idVerificationStatus}
+          referenceCheckStatus={userData.referenceCheckStatus}
+          references={userData.references}
+          onStartInterview={handleStartOrContinueInterview}
+          onStartIdVerification={() => setCurrentPage("IdVerification")}
+          onStartReferenceCheck={() => setCurrentPage("ReferenceCheck")}
+        />;
     }
   };
 
@@ -484,8 +446,8 @@ export default function App() {
           activeTab={getActiveTab()} 
           onNavigate={setCurrentPage}
           onLogout={handleLogout}
-          userEmail={currentUser?.email}
-          userName={currentUser?.name}
+          userEmail={user?.email}
+          userName={user?.name}
         />
       )}
       {renderPage()}

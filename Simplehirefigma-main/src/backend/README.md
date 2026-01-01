@@ -27,14 +27,30 @@ npm run prisma:generate
 # Run database migrations
 npm run prisma:migrate
 
-# Seed database with test data (optional)
+# Seed database with demo/test users
 npm run prisma:seed
+
 
 # Start development server
 npm run dev
 ```
 
 Server will start on `http://localhost:3000`
+
+### Demo/Test Users
+
+After running `npm run prisma:seed`, the following demo users will be available for testing:
+
+| Email | Password | Description |
+|-------|----------|-------------|
+| demo@simplehire.ai | demo | Demo user with all products purchased |
+| john@example.com | password123 | New user, no products |
+| sarah@example.com | password123 | 2 products, interview in progress |
+| mike@example.com | password123 | All products, advanced progress |
+| emma@example.com | password123 | 1 product, interview completed |
+| alex@example.com | password123 | New user, no products |
+
+These users can be used to test different scenarios in the application, from new user onboarding to completed verifications.
 
 ---
 

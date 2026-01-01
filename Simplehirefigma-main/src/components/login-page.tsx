@@ -9,55 +9,44 @@ interface LoginPageProps {
   onNavigateToSignup: () => void;
 }
 
-// Hardcoded test users for different scenarios
-const mockUsers = [
+// Demo test users - these are seeded in the backend database
+// Use these credentials to test different user scenarios
+const demoUsers = [
   {
-    id: "user1",
-    email: "john@example.com",
-    password: "password123",
-    name: "John Anderson",
-    purchasedProducts: ["skill"],
-    interviewProgress: { documentsUploaded: false, voiceInterview: false, mcqTest: false, codingChallenge: false }
-  },
-  {
-    id: "user2",
-    email: "sarah@example.com",
-    password: "password123",
-    name: "Sarah Mitchell",
-    purchasedProducts: ["skill", "id-visa"],
-    interviewProgress: { documentsUploaded: true, voiceInterview: true, mcqTest: false, codingChallenge: false }
-  },
-  {
-    id: "user3",
-    email: "mike@example.com",
-    password: "password123",
-    name: "Mike Chen",
-    purchasedProducts: ["skill", "id-visa", "reference"],
-    interviewProgress: { documentsUploaded: true, voiceInterview: true, mcqTest: true, codingChallenge: false }
-  },
-  {
-    id: "user4",
-    email: "emma@example.com",
-    password: "password123",
-    name: "Emma Thompson",
-    purchasedProducts: ["skill"],
-    interviewProgress: { documentsUploaded: true, voiceInterview: true, mcqTest: true, codingChallenge: true }
-  },
-  {
-    id: "user5",
-    email: "alex@example.com",
-    password: "password123",
-    name: "Alex Rodriguez",
-    purchasedProducts: [],
-    interviewProgress: { documentsUploaded: false, voiceInterview: false, mcqTest: false, codingChallenge: false }
-  },
-  {
-    id: "user6",
     email: "demo@simplehire.ai",
     password: "demo",
     name: "Demo User",
-    purchasedProducts: ["skill", "id-visa", "reference"],
-    interviewProgress: { documentsUploaded: false, voiceInterview: false, mcqTest: false, codingChallenge: false }
+    description: "All products",
+  },
+  {
+    email: "john@example.com",
+    password: "password123",
+    name: "John Anderson",
+    description: "No products",
+  },
+  {
+    email: "sarah@example.com",
+    password: "password123",
+    name: "Sarah Mitchell",
+    description: "2 products, Interview started",
+  },
+  {
+    email: "mike@example.com",
+    password: "password123",
+    name: "Mike Chen",
+    description: "All products, In progress",
+  },
+  {
+    email: "emma@example.com",
+    password: "password123",
+    name: "Emma Thompson",
+    description: "1 product, Completed",
+  },
+  {
+    email: "alex@example.com",
+    password: "password123",
+    name: "Alex Rodriguez",
+    description: "No products",
   }
 ];
 
@@ -130,11 +119,26 @@ export function LoginPage({ onLogin, onNavigateToSignup }: LoginPageProps) {
     });
   };
 
-  const handleQuickLogin = (user: typeof mockUsers[0]) => {
+  const handleQuickLogin = async (user: typeof demoUsers[0]) => {
     setEmail(user.email);
     setPassword(user.password);
     setFieldErrors({});
     clearError();
+    
+    // Auto-submit the form after a brief delay to allow state to update
+    setTimeout(async () => {
+      const result = await login(user.email, user.password);
+      
+      if (result.success) {
+        toast.success("Welcome back!", {
+          description: "You've successfully signed in.",
+        });
+      } else {
+        toast.error("Login failed", {
+          description: result.error || "Invalid email or password",
+        });
+      }
+    }, 100);
   };
 
   return (
@@ -312,12 +316,13 @@ export function LoginPage({ onLogin, onNavigateToSignup }: LoginPageProps) {
             </div>
 
             <div className="space-y-2">
-              {mockUsers.map((user, index) => (
+              {demoUsers.map((user) => (
                 <button
-                  key={user.id}
+                  key={user.email}
                   type="button"
                   onClick={() => handleQuickLogin(user)}
-                  className="w-full text-left px-4 py-3 bg-white hover:bg-amber-50 border border-amber-200 rounded-lg transition-colors group"
+                  disabled={isLoading}
+                  className="w-full text-left px-4 py-3 bg-white hover:bg-amber-50 border border-amber-200 rounded-lg transition-colors group disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
@@ -326,23 +331,11 @@ export function LoginPage({ onLogin, onNavigateToSignup }: LoginPageProps) {
                         <span className="text-xs text-slate-500">({user.email})</span>
                       </div>
                       <div className="flex items-center gap-2 text-xs">
-                        <span className="text-slate-600">
-                          {user.purchasedProducts.length === 0 
-                            ? "No products" 
-                            : user.purchasedProducts.length === 3
-                            ? "All products"
-                            : `${user.purchasedProducts.length} product${user.purchasedProducts.length > 1 ? 's' : ''}`}
-                        </span>
-                        {user.interviewProgress.voiceInterview && (
-                          <span className="text-green-600">• Interview started</span>
-                        )}
-                        {user.interviewProgress.voiceInterview && user.interviewProgress.mcqTest && user.interviewProgress.codingChallenge && (
-                          <span className="text-blue-600">• Completed</span>
-                        )}
+                        <span className="text-slate-600">{user.description}</span>
                       </div>
                     </div>
                     <div className="text-xs text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                      Click to login
+                      {isLoading ? "Logging in..." : "Click to login"}
                     </div>
                   </div>
                 </button>

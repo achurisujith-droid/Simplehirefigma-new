@@ -1,7 +1,7 @@
 /**
  * API Service Layer
  * Centralized HTTP client for all API communications
- * Handles authentication, error handling, and request/response transformations
+ * Uses cookie-based authentication (no localStorage)
  */
 
 import { config } from '../config/environment';
@@ -10,32 +10,10 @@ import type { ApiResponse, ApiError } from '../types';
 class ApiClient {
   private baseURL: string;
   private timeout: number;
-  private authToken: string | null = null;
 
   constructor() {
     this.baseURL = config.apiBaseUrl;
     this.timeout = config.apiTimeout;
-    this.loadAuthToken();
-  }
-
-  // Load auth token from localStorage
-  private loadAuthToken(): void {
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      this.authToken = token;
-    }
-  }
-
-  // Set auth token
-  public setAuthToken(token: string): void {
-    this.authToken = token;
-    localStorage.setItem('authToken', token);
-  }
-
-  // Clear auth token
-  public clearAuthToken(): void {
-    this.authToken = null;
-    localStorage.removeItem('authToken');
   }
 
   // Get default headers
@@ -44,10 +22,7 @@ class ApiClient {
       'Content-Type': 'application/json',
     };
 
-    if (this.authToken) {
-      headers['Authorization'] = `Bearer ${this.authToken}`;
-    }
-
+    // No Authorization header - using cookies instead
     return headers;
   }
 
@@ -63,6 +38,7 @@ class ApiClient {
     try {
       const response = await fetch(url, {
         ...options,
+        credentials: 'include', // Include cookies in request
         headers: {
           ...this.getHeaders(),
           ...options.headers,
@@ -75,6 +51,12 @@ class ApiClient {
       const data = await response.json();
 
       if (!response.ok) {
+        // Handle 401 Unauthorized
+        if (response.status === 401 && typeof window !== 'undefined') {
+          // Dispatch event for auth store to handle
+          window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+        }
+
         throw {
           code: data.code || `HTTP_${response.status}`,
           message: data.message || response.statusText,
@@ -157,15 +139,18 @@ class ApiClient {
     try {
       const response = await fetch(url, {
         method: 'POST',
-        headers: {
-          ...(this.authToken && { Authorization: `Bearer ${this.authToken}` }),
-        },
+        credentials: 'include', // Include cookies
         body: formData,
       });
 
       const data = await response.json();
 
       if (!response.ok) {
+        // Handle 401 Unauthorized
+        if (response.status === 401 && typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+        }
+
         throw {
           code: data.code || `HTTP_${response.status}`,
           message: data.message || response.statusText,

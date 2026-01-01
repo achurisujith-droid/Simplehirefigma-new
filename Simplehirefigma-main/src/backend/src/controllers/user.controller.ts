@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../types';
 import prisma from '../config/database';
 import { AppError } from '../utils/errors';
+import { comparePassword, hashPassword } from '../utils/password';
 
 export const getUserData = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -199,7 +200,6 @@ export const changePassword = async (
     }
 
     // Verify current password
-    const { comparePassword } = await import('../utils/password');
     const isValidPassword = await comparePassword(currentPassword, user.passwordHash);
 
     if (!isValidPassword) {
@@ -207,7 +207,6 @@ export const changePassword = async (
     }
 
     // Hash new password
-    const { hashPassword } = await import('../utils/password');
     const newPasswordHash = await hashPassword(newPassword);
 
     // Update password

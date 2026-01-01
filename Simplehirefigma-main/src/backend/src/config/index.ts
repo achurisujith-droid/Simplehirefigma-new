@@ -59,6 +59,9 @@ interface Config {
     maxFileSize: number;
     maxAudioSize: number;
   };
+  redis: {
+    url: string;
+  };
   bcryptRounds: number;
   logLevel: string;
 }
@@ -119,6 +122,9 @@ export const config: Config = {
   fileUpload: {
     maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760', 10),
     maxAudioSize: parseInt(process.env.MAX_AUDIO_SIZE || '52428800', 10),
+  },
+  redis: {
+    url: process.env.REDIS_URL || '',
   },
   bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS || '12', 10),
   logLevel: process.env.LOG_LEVEL || 'info',

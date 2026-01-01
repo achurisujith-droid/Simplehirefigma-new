@@ -12,6 +12,7 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { authenticate } from './middleware/auth';
 import { auditLogger } from './middleware/audit-logger';
 import { validateEnvironmentOrExit } from './utils/validateEnv';
+import { sessionManager } from './services/session-manager';
 
 // Import routes
 import authRoutes from './routes/auth.routes';
@@ -38,7 +39,7 @@ app.use(helmet());
 const corsOptions = {
   origin:
     config.nodeEnv === 'production'
-      ? [config.frontendUrl, /\.railway\.app$/]
+      ? [config.frontendUrl, /^https:\/\/[a-z0-9-]+\.railway\.app$/]
       : config.frontendUrl,
   credentials: true,
 };
@@ -202,6 +203,10 @@ async function startServer() {
     setupGracefulShutdown(server);
     logger.info('✅ Graceful shutdown handlers configured');
     
+    logger.info('🧹 Setting up session cleanup scheduler...');
+    setupSessionCleanup();
+    logger.info('✅ Session cleanup scheduler configured');
+    
     logger.info('✨ Server startup complete!');
   } catch (error) {
     logger.error('❌ CRITICAL: Failed to start server');
@@ -294,6 +299,20 @@ function setupGracefulShutdown(server: any): void {
     logger.error('Unhandled Rejection:', err);
     process.exit(1);
   });
+}
+
+/**
+ * Setup periodic session cleanup
+ */
+function setupSessionCleanup(): void {
+  // Clean up old sessions every hour
+  setInterval(() => {
+    sessionManager.cleanupOldSessions().catch((error) => {
+      logger.error('Session cleanup error', error);
+    });
+  }, 60 * 60 * 1000); // Every hour
+  
+  logger.info('Session cleanup will run every hour');
 }
 
 // Start the server only if not in test environment

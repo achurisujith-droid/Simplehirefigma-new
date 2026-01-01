@@ -2,11 +2,14 @@
  * Session Manager Service
  * Manages interview sessions, state, questions, and answers
  * Supports both ElevenLabs and OpenAI voice providers
+ * Uses Redis for session storage with graceful fallback to in-memory Map
  */
 
 import { v4 as uuidv4 } from 'uuid';
+import Redis from 'ioredis';
 import prisma from '../config/database';
 import logger from '../config/logger';
+import config from '../config';
 
 export interface VoiceQuestion {
   id: string;
@@ -37,27 +40,126 @@ export interface InterviewSession {
   updatedAt: Date;
 }
 
-// In-memory session store (can be replaced with Redis in production)
+// In-memory session store (fallback when Redis is unavailable)
 // Note: This implementation will lose data on server restarts and doesn't scale across multiple instances.
-// For production, consider using Redis with a library like 'ioredis' or 'redis' npm package.
-// Example migration path:
-// 1. Install redis client: npm install ioredis
-// 2. Replace Map with Redis client
-// 3. Serialize/deserialize session data as JSON
 const sessions = new Map<string, InterviewSession>();
+
+// Redis client for production session storage
+let redisClient: Redis | null = null;
+let useRedis = false;
+
+// Session TTL in seconds (24 hours)
+const SESSION_TTL = 24 * 60 * 60;
+
+// Initialize Redis connection
+try {
+  if (config.redis.url) {
+    redisClient = new Redis(config.redis.url, {
+      maxRetriesPerRequest: 3,
+      retryStrategy(times) {
+        const delay = Math.min(times * 50, 2000);
+        return delay;
+      },
+      lazyConnect: true,
+    });
+
+    redisClient.on('connect', () => {
+      useRedis = true;
+      logger.info('Redis client connected successfully');
+    });
+
+    redisClient.on('error', (err) => {
+      useRedis = false;
+      logger.error('Redis client error, falling back to in-memory storage', err);
+    });
+
+    // Attempt to connect
+    redisClient.connect().catch((err) => {
+      useRedis = false;
+      logger.warn('Failed to connect to Redis, using in-memory storage', err);
+    });
+  } else {
+    logger.info('REDIS_URL not configured, using in-memory session storage');
+  }
+} catch (error) {
+  logger.warn('Failed to initialize Redis client, using in-memory storage', error);
+}
 
 export class SessionManager {
   /**
+   * Store session in Redis or in-memory Map
+   */
+  private async setSession(sessionId: string, session: InterviewSession): Promise<void> {
+    if (useRedis && redisClient) {
+      try {
+        await redisClient.setex(
+          `session:${sessionId}`,
+          SESSION_TTL,
+          JSON.stringify(session)
+        );
+        return;
+      } catch (error) {
+        logger.error('Failed to store session in Redis, falling back to memory', error);
+        useRedis = false;
+      }
+    }
+    sessions.set(sessionId, session);
+  }
+
+  /**
+   * Retrieve session from Redis or in-memory Map
+   */
+  private async getSessionData(sessionId: string): Promise<InterviewSession | undefined> {
+    if (useRedis && redisClient) {
+      try {
+        const data = await redisClient.get(`session:${sessionId}`);
+        if (data) {
+          const session = JSON.parse(data) as InterviewSession;
+          // Convert date strings back to Date objects
+          session.createdAt = new Date(session.createdAt);
+          session.updatedAt = new Date(session.updatedAt);
+          session.answers = session.answers.map((a: VoiceAnswer) => ({
+            ...a,
+            timestamp: new Date(a.timestamp),
+          }));
+          return session;
+        }
+        return undefined;
+      } catch (error) {
+        logger.error('Failed to retrieve session from Redis, falling back to memory', error);
+        useRedis = false;
+      }
+    }
+    return sessions.get(sessionId);
+  }
+
+  /**
+   * Delete session from Redis or in-memory Map
+   */
+  private async deleteSessionData(sessionId: string): Promise<void> {
+    if (useRedis && redisClient) {
+      try {
+        await redisClient.del(`session:${sessionId}`);
+        return;
+      } catch (error) {
+        logger.error('Failed to delete session from Redis, falling back to memory', error);
+        useRedis = false;
+      }
+    }
+    sessions.delete(sessionId);
+  }
+
+  /**
    * Create a new interview session
    */
-  createSession(params: {
+  async createSession(params: {
     userId: string;
     assessmentPlanId: string;
     provider: 'elevenlabs' | 'openai';
     questions: VoiceQuestion[];
     resumeContext?: string;
     jobRole?: string;
-  }): InterviewSession {
+  }): Promise<InterviewSession> {
     const sessionId = uuidv4();
     const now = new Date();
 
@@ -76,7 +178,7 @@ export class SessionManager {
       updatedAt: now,
     };
 
-    sessions.set(sessionId, session);
+    await this.setSession(sessionId, session);
     logger.info('Created interview session', { sessionId, userId: params.userId });
 
     return session;
@@ -85,22 +187,22 @@ export class SessionManager {
   /**
    * Get session by ID
    */
-  getSession(sessionId: string): InterviewSession | undefined {
-    return sessions.get(sessionId);
+  async getSession(sessionId: string): Promise<InterviewSession | undefined> {
+    return this.getSessionData(sessionId);
   }
 
   /**
    * Add an answer to the session
    */
-  addAnswer(sessionId: string, answer: VoiceAnswer): void {
-    const session = sessions.get(sessionId);
+  async addAnswer(sessionId: string, answer: VoiceAnswer): Promise<void> {
+    const session = await this.getSessionData(sessionId);
     if (!session) {
       throw new Error(`Session ${sessionId} not found`);
     }
 
     session.answers.push(answer);
     session.updatedAt = new Date();
-    sessions.set(sessionId, session);
+    await this.setSession(sessionId, session);
 
     logger.info('Added answer to session', {
       sessionId,
@@ -112,19 +214,20 @@ export class SessionManager {
   /**
    * Get the next question in the interview
    */
-  getNextQuestion(sessionId: string): VoiceQuestion | null {
-    const session = sessions.get(sessionId);
+  async getNextQuestion(sessionId: string): Promise<VoiceQuestion | null> {
+    const session = await this.getSessionData(sessionId);
     if (!session) {
       throw new Error(`Session ${sessionId} not found`);
     }
 
-    session.currentQuestionIndex++;
-    session.updatedAt = new Date();
-    sessions.set(sessionId, session);
-
-    if (session.currentQuestionIndex >= session.questions.length) {
+    const nextIndex = session.currentQuestionIndex + 1;
+    if (nextIndex >= session.questions.length) {
       return null; // No more questions
     }
+    
+    session.currentQuestionIndex = nextIndex;
+    session.updatedAt = new Date();
+    await this.setSession(sessionId, session);
 
     return session.questions[session.currentQuestionIndex];
   }
@@ -132,8 +235,8 @@ export class SessionManager {
   /**
    * Get current question
    */
-  getCurrentQuestion(sessionId: string): VoiceQuestion | null {
-    const session = sessions.get(sessionId);
+  async getCurrentQuestion(sessionId: string): Promise<VoiceQuestion | null> {
+    const session = await this.getSessionData(sessionId);
     if (!session) {
       throw new Error(`Session ${sessionId} not found`);
     }
@@ -149,14 +252,14 @@ export class SessionManager {
    * Mark session as completed
    */
   async completeSession(sessionId: string): Promise<void> {
-    const session = sessions.get(sessionId);
+    const session = await this.getSessionData(sessionId);
     if (!session) {
       throw new Error(`Session ${sessionId} not found`);
     }
 
     session.status = 'completed';
     session.updatedAt = new Date();
-    sessions.set(sessionId, session);
+    await this.setSession(sessionId, session);
 
     // Persist answers to database
     await this.persistSessionToDatabase(session);
@@ -167,25 +270,25 @@ export class SessionManager {
   /**
    * Cancel session
    */
-  cancelSession(sessionId: string): void {
-    const session = sessions.get(sessionId);
+  async cancelSession(sessionId: string): Promise<void> {
+    const session = await this.getSessionData(sessionId);
     if (!session) {
       throw new Error(`Session ${sessionId} not found`);
     }
 
     session.status = 'cancelled';
     session.updatedAt = new Date();
-    sessions.set(sessionId, session);
+    await this.setSession(sessionId, session);
 
     logger.info('Cancelled interview session', { sessionId });
   }
 
   /**
-   * Delete session from memory
+   * Delete session from storage
    */
-  deleteSession(sessionId: string): void {
-    sessions.delete(sessionId);
-    logger.info('Deleted interview session from memory', { sessionId });
+  async deleteSession(sessionId: string): Promise<void> {
+    await this.deleteSessionData(sessionId);
+    logger.info('Deleted interview session', { sessionId });
   }
 
   /**
@@ -234,9 +337,25 @@ export class SessionManager {
 
   /**
    * Get all active sessions for a user
+   * Note: This only works efficiently with in-memory storage.
+   * For Redis, consider implementing with key pattern scanning if needed.
    */
-  getUserActiveSessions(userId: string): InterviewSession[] {
+  async getUserActiveSessions(userId: string): Promise<InterviewSession[]> {
     const userSessions: InterviewSession[] = [];
+    
+    // For in-memory storage
+    if (!useRedis || !redisClient) {
+      sessions.forEach(session => {
+        if (session.userId === userId && session.status === 'active') {
+          userSessions.push(session);
+        }
+      });
+      return userSessions;
+    }
+
+    // For Redis, we'd need to scan keys or maintain a separate index
+    // For now, fall back to in-memory check
+    logger.warn('getUserActiveSessions not optimized for Redis, using in-memory fallback');
     sessions.forEach(session => {
       if (session.userId === userId && session.status === 'active') {
         userSessions.push(session);
@@ -247,26 +366,38 @@ export class SessionManager {
 
   /**
    * Clean up old sessions (call this periodically)
-   * Note: In production, this should be called by a cron job or scheduled task
-   * Example: setInterval(() => sessionManager.cleanupOldSessions(), 60 * 60 * 1000)
+   * Note: With Redis, sessions automatically expire via TTL
+   * This cleanup is primarily for in-memory sessions
    */
-  cleanupOldSessions(maxAgeMs: number = 24 * 60 * 60 * 1000): number {
+  async cleanupOldSessions(maxAgeMs: number = 24 * 60 * 60 * 1000): Promise<number> {
     const now = new Date();
     let cleaned = 0;
 
-    sessions.forEach((session, sessionId) => {
-      const ageMs = now.getTime() - session.updatedAt.getTime();
-      if (ageMs > maxAgeMs && session.status !== 'active') {
+    // For in-memory storage
+    if (!useRedis || !redisClient) {
+      const toDelete: string[] = [];
+      sessions.forEach((session, sessionId) => {
+        const ageMs = now.getTime() - session.updatedAt.getTime();
+        if (ageMs > maxAgeMs && session.status !== 'active') {
+          toDelete.push(sessionId);
+        }
+      });
+
+      toDelete.forEach(sessionId => {
         sessions.delete(sessionId);
         cleaned++;
-      }
-    });
+      });
 
-    if (cleaned > 0) {
-      logger.info('Cleaned up old sessions', { count: cleaned });
+      if (cleaned > 0) {
+        logger.info('Cleaned up old sessions from memory', { count: cleaned });
+      }
+
+      return cleaned;
     }
 
-    return cleaned;
+    // For Redis, sessions expire automatically via TTL
+    logger.info('Redis sessions expire automatically via TTL');
+    return 0;
   }
 }
 

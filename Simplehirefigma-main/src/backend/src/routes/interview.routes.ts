@@ -176,7 +176,7 @@ router.post('/voice/start', async (req: AuthRequest, res: Response, next: NextFu
     }
 
     // Create session
-    const session = sessionManager.createSession({
+    const session = await sessionManager.createSession({
       userId: req.user!.id,
       assessmentPlanId: assessmentPlan.id,
       provider: 'elevenlabs',
@@ -209,7 +209,7 @@ router.post('/voice/start', async (req: AuthRequest, res: Response, next: NextFu
         clearTimeout(timeoutId);
 
         if (response.ok) {
-          const data = await response.json();
+          const data = (await response.json()) as { signed_url?: string };
           signedUrl = data.signed_url;
           agentConfig = {
             agentId: config.elevenlabs.agentId,
@@ -259,7 +259,7 @@ router.post(
       }
 
       // Get session
-      const session = sessionManager.getSession(sessionId);
+      const session = await sessionManager.getSession(sessionId);
       if (!session) {
         throw new AppError('Session not found', 404, 'NOT_FOUND');
       }
@@ -318,18 +318,18 @@ router.post('/notify-answer', async (req: Request, res: Response, next: NextFunc
       throw new AppError('sessionId, questionId, and transcript are required', 400, 'VALIDATION_ERROR');
     }
 
-    const session = sessionManager.getSession(sessionId);
+    const session = await sessionManager.getSession(sessionId);
     if (!session) {
       throw new AppError('Session not found', 404, 'NOT_FOUND');
     }
 
-    const question = session.questions.find(q => q.id === questionId);
+    const question = session.questions.find((q: VoiceQuestion) => q.id === questionId);
     if (!question) {
       throw new AppError('Question not found', 404, 'NOT_FOUND');
     }
 
     // Store the answer
-    sessionManager.addAnswer(sessionId, {
+    await sessionManager.addAnswer(sessionId, {
       questionId,
       question: question.question,
       transcript,
@@ -358,12 +358,12 @@ router.post('/next-question', async (req: Request, res: Response, next: NextFunc
       throw new AppError('sessionId is required', 400, 'VALIDATION_ERROR');
     }
 
-    const session = sessionManager.getSession(sessionId);
+    const session = await sessionManager.getSession(sessionId);
     if (!session) {
       throw new AppError('Session not found', 404, 'NOT_FOUND');
     }
 
-    const nextQuestion = sessionManager.getNextQuestion(sessionId);
+    const nextQuestion = await sessionManager.getNextQuestion(sessionId);
 
     if (!nextQuestion) {
       // No more questions - interview complete
@@ -399,7 +399,7 @@ router.post('/stop-interview', async (req: Request, res: Response, next: NextFun
       throw new AppError('sessionId is required', 400, 'VALIDATION_ERROR');
     }
 
-    const session = sessionManager.getSession(sessionId);
+    const session = await sessionManager.getSession(sessionId);
     if (!session) {
       throw new AppError('Session not found', 404, 'NOT_FOUND');
     }
@@ -408,7 +408,7 @@ router.post('/stop-interview', async (req: Request, res: Response, next: NextFun
       await sessionManager.completeSession(sessionId);
       logger.info('Interview completed', { sessionId });
     } else {
-      sessionManager.cancelSession(sessionId);
+      await sessionManager.cancelSession(sessionId);
       logger.info('Interview cancelled', { sessionId, reason });
     }
 

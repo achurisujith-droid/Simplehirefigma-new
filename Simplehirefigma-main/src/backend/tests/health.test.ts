@@ -5,7 +5,7 @@
 import request from 'supertest';
 import app from '../src/server';
 import { prisma } from './setup';
-import prismaDb from '../src/config/database'; // Import the server's prisma instance
+import * as database from '../src/config/database'; // Import as namespace to allow mocking
 
 describe('Health Check API', () => {
   describe('GET /health', () => {
@@ -33,22 +33,19 @@ describe('Health Check API', () => {
     });
 
     it('should return 200 even when database is not healthy', async () => {
-      try {
-        // Disconnect the server's prisma instance to test database failure handling
-        await prismaDb.$disconnect();
+      // Mock checkDatabaseHealth to return false instead of actually disconnecting
+      const mockCheckDatabaseHealth = jest.spyOn(database, 'checkDatabaseHealth')
+        .mockResolvedValue(false);
 
+      try {
         const response = await request(app).get('/health').expect(200);
 
         expect(response.body.success).toBe(true);
         expect(response.body.services.database).toBe(false);
+        expect(mockCheckDatabaseHealth).toHaveBeenCalled();
       } finally {
-        // Reconnect - wrap in try-catch since health endpoint is designed to work without DB
-        try {
-          await prisma.$connect();
-        } catch (error) {
-          // Prisma auto-connects on next query, so this is safe to ignore
-          console.log('Database will reconnect automatically on next query');
-        }
+        // Restore the original implementation
+        mockCheckDatabaseHealth.mockRestore();
       }
     });
 

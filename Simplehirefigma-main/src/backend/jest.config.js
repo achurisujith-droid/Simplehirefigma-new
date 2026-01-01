@@ -21,4 +21,6 @@ module.exports = {
   verbose: true,
   // Run tests serially to avoid database connection race conditions
   maxWorkers: 1,
+  // Force Jest to exit after tests complete to handle lingering Prisma connections
+  forceExit: true,
 };

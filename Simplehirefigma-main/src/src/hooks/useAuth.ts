@@ -1,10 +1,11 @@
 /**
  * Authentication Hook
- * Manages user authentication state and token refresh
+ * Manages user authentication state via authStore
+ * No localStorage - session restored from backend cookie
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { authService } from '../services/auth.service';
+import { useAuthStore } from '../store/authStore';
 import { userService } from '../services/user.service';
 import type { User } from '../types';
 
@@ -16,128 +17,52 @@ interface AuthState {
 }
 
 export function useAuth() {
-  const [authState, setAuthState] = useState<AuthState>({
-    isAuthenticated: false,
-    user: null,
-    isLoading: true,
-    error: null,
-  });
+  const { 
+    user, 
+    isAuthenticated, 
+    isLoading, 
+    error, 
+    login: storeLogin, 
+    signup: storeSignup, 
+    logout: storeLogout,
+    clearError,
+    bootstrap
+  } = useAuthStore();
 
-  // Check for existing session on mount
+  // Bootstrap auth on mount
   useEffect(() => {
-    const initAuth = async () => {
-      const token = localStorage.getItem('authToken');
-      if (!token) {
-        setAuthState({ isAuthenticated: false, user: null, isLoading: false, error: null });
-        return;
-      }
-
-      try {
-        // Verify token and fetch user data
-        const response = await userService.getUserData();
-        if (response.success && response.data) {
-          setAuthState({
-            isAuthenticated: true,
-            user: response.data,
-            isLoading: false,
-            error: null,
-          });
-        } else {
-          // Token invalid, clear it
-          localStorage.removeItem('authToken');
-          localStorage.removeItem('refreshToken');
-          setAuthState({ isAuthenticated: false, user: null, isLoading: false, error: null });
-        }
-      } catch (error) {
-        localStorage.removeItem('authToken');
-        localStorage.removeItem('refreshToken');
-        setAuthState({
-          isAuthenticated: false,
-          user: null,
-          isLoading: false,
-          error: 'Session expired',
-        });
-      }
-    };
-
-    initAuth();
-  }, []);
+    bootstrap();
+  }, [bootstrap]);
 
   const login = useCallback(async (email: string, password: string) => {
-    setAuthState(prev => ({ ...prev, isLoading: true, error: null }));
-
-    const response = await authService.login(email, password);
-
-    if (response.success && response.data) {
-      setAuthState({
-        isAuthenticated: true,
-        user: response.data.user,
-        isLoading: false,
-        error: null,
-      });
-      return { success: true };
-    } else {
-      setAuthState({
-        isAuthenticated: false,
-        user: null,
-        isLoading: false,
-        error: response.error || 'Login failed',
-      });
-      return { success: false, error: response.error };
-    }
-  }, []);
+    return await storeLogin(email, password);
+  }, [storeLogin]);
 
   const signup = useCallback(async (email: string, password: string, name: string) => {
-    setAuthState(prev => ({ ...prev, isLoading: true, error: null }));
-
-    const response = await authService.signup(email, password, name);
-
-    if (response.success && response.data) {
-      setAuthState({
-        isAuthenticated: true,
-        user: response.data.user,
-        isLoading: false,
-        error: null,
-      });
-      return { success: true };
-    } else {
-      setAuthState({
-        isAuthenticated: false,
-        user: null,
-        isLoading: false,
-        error: response.error || 'Signup failed',
-      });
-      return { success: false, error: response.error };
-    }
-  }, []);
+    return await storeSignup(email, password, name);
+  }, [storeSignup]);
 
   const logout = useCallback(async () => {
-    await authService.logout();
-    setAuthState({
-      isAuthenticated: false,
-      user: null,
-      isLoading: false,
-      error: null,
-    });
-  }, []);
+    await storeLogout();
+  }, [storeLogout]);
 
   const refreshUser = useCallback(async () => {
     const response = await userService.getUserData();
     if (response.success && response.data) {
-      setAuthState(prev => ({
-        ...prev,
-        user: response.data,
-      }));
       return response.data;
     }
     return null;
   }, []);
 
   return {
-    ...authState,
+    isAuthenticated,
+    user,
+    isLoading,
+    error,
     login,
     signup,
     logout,
     refreshUser,
+    clearError,
   };
 }

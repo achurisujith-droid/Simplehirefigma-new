@@ -96,6 +96,15 @@ app.get('/health', async (req, res) => {
       health.services.database = false;
     }
 
+    // Log all service statuses
+    logger.info('Health check - Service statuses:', {
+      database: health.services.database,
+      multiLLM: health.services.multiLLM,
+      storage: health.services.storage,
+      payments: health.services.payments,
+      email: health.services.email,
+    });
+
     // Always return 200 - let services be degraded without failing healthcheck
     res.json(health);
   } catch (error) {
@@ -142,7 +151,8 @@ if (config.nodeEnv === 'production') {
   app.use(express.static(frontendPath));
   
   // SPA fallback - serve index.html for all non-API routes
-  app.get('/*', (req, res, next) => {
+  // Using app.use instead of app.get('/*') to avoid path-to-regexp issues in Express 5
+  app.use((req, res, next) => {
     // Skip if request is for API routes (let 404 handler deal with them)
     if (req.path.startsWith('/api')) {
       return next();

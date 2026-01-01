@@ -150,11 +150,16 @@ if (config.nodeEnv === 'production') {
   // Serve static files
   app.use(express.static(frontendPath));
   
-  // SPA fallback - serve index.html for all non-API routes
+  // SPA fallback - serve index.html for all non-API GET requests
   // Using app.use instead of app.get('/*') to avoid path-to-regexp issues in Express 5
   app.use((req, res, next) => {
     // Skip if request is for API routes (let 404 handler deal with them)
     if (req.path.startsWith('/api')) {
+      return next();
+    }
+    
+    // Only handle GET requests for SPA fallback
+    if (req.method !== 'GET') {
       return next();
     }
     

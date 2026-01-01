@@ -22,7 +22,7 @@ const getEnvVar = (key: string, defaultValue: string = ''): string => {
 };
 
 const developmentConfig: EnvironmentConfig = {
-  apiBaseUrl: getEnvVar('VITE_API_BASE_URL', 'http://localhost:3000/api'),
+  apiBaseUrl: getEnvVar('VITE_API_BASE_URL', 'http://https://simplehire1.up.railway.app/api'),
   environment: 'development',
   enableLogging: true,
   apiTimeout: 30000,

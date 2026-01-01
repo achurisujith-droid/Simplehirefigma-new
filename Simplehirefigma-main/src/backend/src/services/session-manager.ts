@@ -38,6 +38,12 @@ export interface InterviewSession {
 }
 
 // In-memory session store (can be replaced with Redis in production)
+// Note: This implementation will lose data on server restarts and doesn't scale across multiple instances.
+// For production, consider using Redis with a library like 'ioredis' or 'redis' npm package.
+// Example migration path:
+// 1. Install redis client: npm install ioredis
+// 2. Replace Map with Redis client
+// 3. Serialize/deserialize session data as JSON
 const sessions = new Map<string, InterviewSession>();
 
 export class SessionManager {
@@ -241,6 +247,8 @@ export class SessionManager {
 
   /**
    * Clean up old sessions (call this periodically)
+   * Note: In production, this should be called by a cron job or scheduled task
+   * Example: setInterval(() => sessionManager.cleanupOldSessions(), 60 * 60 * 1000)
    */
   cleanupOldSessions(maxAgeMs: number = 24 * 60 * 60 * 1000): number {
     const now = new Date();

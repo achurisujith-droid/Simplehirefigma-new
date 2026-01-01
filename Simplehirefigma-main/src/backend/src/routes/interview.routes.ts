@@ -191,6 +191,10 @@ router.post('/voice/start', async (req: AuthRequest, res: Response, next: NextFu
 
     if (config.elevenlabs.apiKey && config.elevenlabs.agentId) {
       try {
+        // Add timeout to prevent hanging
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
         const response = await fetch(
           `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${config.elevenlabs.agentId}`,
           {
@@ -198,8 +202,11 @@ router.post('/voice/start', async (req: AuthRequest, res: Response, next: NextFu
             headers: {
               'xi-api-key': config.elevenlabs.apiKey,
             },
+            signal: controller.signal,
           }
         );
+
+        clearTimeout(timeoutId);
 
         if (response.ok) {
           const data = await response.json();
@@ -215,8 +222,13 @@ router.post('/voice/start', async (req: AuthRequest, res: Response, next: NextFu
             statusText: response.statusText,
           });
         }
-      } catch (error) {
-        logger.error('Error getting ElevenLabs signed URL', { error });
+      } catch (error: any) {
+        if (error.name === 'AbortError') {
+          logger.error('ElevenLabs API request timed out', { error });
+        } else {
+          logger.error('Error getting ElevenLabs signed URL', { error });
+        }
+        // Continue without ElevenLabs - interview can still proceed without real-time voice
       }
     }
 
@@ -295,8 +307,11 @@ router.post(
 );
 
 // Webhook: Notify when user answers a question (called by ElevenLabs agent)
+// Note: In production, add webhook signature verification
 router.post('/notify-answer', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    // TODO: Add webhook signature verification for production
+    // Verify ElevenLabs webhook signature to prevent unauthorized access
     const { sessionId, questionId, transcript } = req.body;
 
     if (!sessionId || !questionId || !transcript) {
@@ -333,8 +348,10 @@ router.post('/notify-answer', async (req: Request, res: Response, next: NextFunc
 });
 
 // Webhook: Get next question (called by ElevenLabs agent)
+// Note: In production, add webhook signature verification
 router.post('/next-question', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    // TODO: Add webhook signature verification for production
     const { sessionId } = req.body;
 
     if (!sessionId) {
@@ -372,8 +389,10 @@ router.post('/next-question', async (req: Request, res: Response, next: NextFunc
 });
 
 // Webhook: Stop interview (called by ElevenLabs agent or user)
+// Note: In production, add webhook signature verification
 router.post('/stop-interview', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    // TODO: Add webhook signature verification for production
     const { sessionId, reason } = req.body;
 
     if (!sessionId) {

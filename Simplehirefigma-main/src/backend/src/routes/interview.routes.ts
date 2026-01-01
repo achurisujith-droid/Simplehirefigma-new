@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request } from 'express';
 import multer from 'multer';
 import { authenticate } from '../middleware/auth';
 import { AuthRequest } from '../types';
@@ -11,6 +11,8 @@ import { mcqGeneratorService } from '../modules/assessment/mcq-generator.service
 import { codeGeneratorService } from '../modules/assessment/code-generator.service';
 import { componentEvaluatorService } from '../modules/assessment/component-evaluator.service';
 import { interviewEvaluatorService } from '../modules/assessment/interview-evaluator.service';
+import { sessionManager, VoiceQuestion } from '../services/session-manager';
+import logger from '../config/logger';
 
 // Type for stored evaluation data
 interface StoredEvaluation {
@@ -109,19 +111,122 @@ router.post('/voice/start', async (req: AuthRequest, res: Response, next: NextFu
   try {
     const { role } = req.body;
 
-    // Create interview session
-    // Return interview questions
+    // Get or create assessment plan
+    const assessmentPlan = await prisma.assessmentPlan.findFirst({
+      where: { userId: req.user!.id, status: 'DRAFT' },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!assessmentPlan) {
+      throw new AppError(
+        'No assessment plan found. Please upload your resume first.',
+        404,
+        'NOT_FOUND'
+      );
+    }
+
+    const plan = assessmentPlan.interviewPlan as any;
+
+    // Generate voice interview questions if not already present
+    let voiceQuestions = plan?.voiceQuestions || [];
+    
+    if (voiceQuestions.length === 0) {
+      // Generate default voice questions based on role and resume
+      const classification = plan?.classification;
+      const jobTitle = role || classification?.primaryRole || 'Software Engineer';
+      
+      voiceQuestions = [
+        {
+          id: 'voice_1',
+          question: `Tell me about your experience as a ${jobTitle}.`,
+          category: 'experience',
+        },
+        {
+          id: 'voice_2',
+          question: 'What are your greatest technical strengths?',
+          category: 'technical',
+        },
+        {
+          id: 'voice_3',
+          question: 'Describe a challenging project you worked on and how you overcame obstacles.',
+          category: 'problem_solving',
+        },
+        {
+          id: 'voice_4',
+          question: 'How do you stay updated with the latest technologies in your field?',
+          category: 'learning',
+        },
+        {
+          id: 'voice_5',
+          question: 'Why are you interested in this position and what are your career goals?',
+          category: 'motivation',
+        },
+      ];
+
+      // Store questions in assessment plan
+      await prisma.assessmentPlan.update({
+        where: { id: assessmentPlan.id },
+        data: {
+          interviewPlan: {
+            ...plan,
+            voiceQuestions,
+          },
+        },
+      });
+    }
+
+    // Create session
+    const session = sessionManager.createSession({
+      userId: req.user!.id,
+      assessmentPlanId: assessmentPlan.id,
+      provider: 'elevenlabs',
+      questions: voiceQuestions as VoiceQuestion[],
+      resumeContext: assessmentPlan.resumeText || undefined,
+      jobRole: role,
+    });
+
+    // Get ElevenLabs signed URL if configured
+    let signedUrl: string | undefined;
+    let agentConfig: any = null;
+
+    if (config.elevenlabs.apiKey && config.elevenlabs.agentId) {
+      try {
+        const response = await fetch(
+          `https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${config.elevenlabs.agentId}`,
+          {
+            method: 'GET',
+            headers: {
+              'xi-api-key': config.elevenlabs.apiKey,
+            },
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          signedUrl = data.signed_url;
+          agentConfig = {
+            agentId: config.elevenlabs.agentId,
+            provider: 'elevenlabs',
+          };
+          logger.info('Got ElevenLabs signed URL', { sessionId: session.sessionId });
+        } else {
+          logger.warn('Failed to get ElevenLabs signed URL', {
+            status: response.status,
+            statusText: response.statusText,
+          });
+        }
+      } catch (error) {
+        logger.error('Error getting ElevenLabs signed URL', { error });
+      }
+    }
+
     res.json({
       success: true,
       data: {
-        sessionId: 'session_' + Date.now(),
-        questions: [
-          {
-            id: 'q1',
-            question: 'Tell me about your experience with ' + role,
-            category: 'experience',
-          },
-        ],
+        sessionId: session.sessionId,
+        questions: voiceQuestions,
+        ...(signedUrl && { signedUrl }),
+        ...(agentConfig && { agentConfig }),
       },
     });
   } catch (error) {
@@ -135,21 +240,167 @@ router.post(
   upload.single('audio'),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
-      if (!req.file) {
-        throw new AppError('Audio file is required', 400, 'VALIDATION_ERROR');
+      const { sessionId, transcript } = req.body;
+
+      if (!sessionId) {
+        throw new AppError('sessionId is required', 400, 'VALIDATION_ERROR');
       }
 
-      const audioResult = await uploadFile(req.file, 'interviews');
+      // Get session
+      const session = sessionManager.getSession(sessionId);
+      if (!session) {
+        throw new AppError('Session not found', 404, 'NOT_FOUND');
+      }
+
+      // Verify ownership
+      if (session.userId !== req.user!.id) {
+        throw new AppError('Unauthorized', 403, 'FORBIDDEN');
+      }
+
+      // Upload audio file if provided
+      let audioUrl: string | undefined;
+      if (req.file) {
+        const audioResult = await uploadFile(req.file, 'interviews');
+        audioUrl = audioResult.url;
+      }
+
+      // Mark session as completed and persist to database
+      await sessionManager.completeSession(sessionId);
+
+      // Get assessment plan
+      const assessmentPlan = await prisma.assessmentPlan.findUnique({
+        where: { id: session.assessmentPlanId },
+      });
+
+      if (!assessmentPlan) {
+        throw new AppError('Assessment plan not found', 404, 'NOT_FOUND');
+      }
+
+      // The evaluation will be done when the user requests /evaluation endpoint
+      // This allows them to complete MCQ and coding challenges first
 
       res.json({
         success: true,
-        message: 'Interview submitted for evaluation',
+        message: 'Voice interview submitted successfully',
+        data: {
+          sessionId,
+          answersCount: session.answers.length,
+          ...(audioUrl && { audioUrl }),
+        },
       });
     } catch (error) {
       next(error);
     }
   }
 );
+
+// Webhook: Notify when user answers a question (called by ElevenLabs agent)
+router.post('/notify-answer', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { sessionId, questionId, transcript } = req.body;
+
+    if (!sessionId || !questionId || !transcript) {
+      throw new AppError('sessionId, questionId, and transcript are required', 400, 'VALIDATION_ERROR');
+    }
+
+    const session = sessionManager.getSession(sessionId);
+    if (!session) {
+      throw new AppError('Session not found', 404, 'NOT_FOUND');
+    }
+
+    const question = session.questions.find(q => q.id === questionId);
+    if (!question) {
+      throw new AppError('Question not found', 404, 'NOT_FOUND');
+    }
+
+    // Store the answer
+    sessionManager.addAnswer(sessionId, {
+      questionId,
+      question: question.question,
+      transcript,
+      timestamp: new Date(),
+    });
+
+    logger.info('Answer recorded', { sessionId, questionId, transcriptLength: transcript.length });
+
+    res.json({
+      success: true,
+      message: 'Answer recorded',
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Webhook: Get next question (called by ElevenLabs agent)
+router.post('/next-question', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { sessionId } = req.body;
+
+    if (!sessionId) {
+      throw new AppError('sessionId is required', 400, 'VALIDATION_ERROR');
+    }
+
+    const session = sessionManager.getSession(sessionId);
+    if (!session) {
+      throw new AppError('Session not found', 404, 'NOT_FOUND');
+    }
+
+    const nextQuestion = sessionManager.getNextQuestion(sessionId);
+
+    if (!nextQuestion) {
+      // No more questions - interview complete
+      return res.json({
+        success: true,
+        completed: true,
+        message: 'Interview completed',
+      });
+    }
+
+    res.json({
+      success: true,
+      completed: false,
+      data: {
+        questionId: nextQuestion.id,
+        question: nextQuestion.question,
+        category: nextQuestion.category,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Webhook: Stop interview (called by ElevenLabs agent or user)
+router.post('/stop-interview', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { sessionId, reason } = req.body;
+
+    if (!sessionId) {
+      throw new AppError('sessionId is required', 400, 'VALIDATION_ERROR');
+    }
+
+    const session = sessionManager.getSession(sessionId);
+    if (!session) {
+      throw new AppError('Session not found', 404, 'NOT_FOUND');
+    }
+
+    if (reason === 'completed') {
+      await sessionManager.completeSession(sessionId);
+      logger.info('Interview completed', { sessionId });
+    } else {
+      sessionManager.cancelSession(sessionId);
+      logger.info('Interview cancelled', { sessionId, reason });
+    }
+
+    res.json({
+      success: true,
+      message: 'Interview stopped',
+    });
+  } catch (error) {
+    next(error);
+  }
+});
 
 // Get MCQ questions - DYNAMIC GENERATION
 router.get('/mcq', async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -230,13 +481,69 @@ router.post('/mcq/submit', async (req: AuthRequest, res: Response, next: NextFun
   try {
     const { answers } = req.body;
 
-    // Calculate score
+    if (!Array.isArray(answers)) {
+      throw new AppError('answers array is required', 400, 'VALIDATION_ERROR');
+    }
+
+    // Get assessment plan with stored questions
+    const assessmentPlan = await prisma.assessmentPlan.findFirst({
+      where: { userId: req.user!.id, status: 'DRAFT' },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!assessmentPlan || !assessmentPlan.interviewPlan) {
+      throw new AppError('Assessment plan not found', 404, 'NOT_FOUND');
+    }
+
+    const plan = assessmentPlan.interviewPlan as any;
+    const mcqQuestions = plan.mcqQuestions || [];
+
+    if (mcqQuestions.length === 0) {
+      throw new AppError('No MCQ questions found', 400, 'VALIDATION_ERROR');
+    }
+
+    // Calculate score by comparing answers with correct answers
+    let correctCount = 0;
+    const mcqAnswers = answers.map((answer: any) => {
+      const question = mcqQuestions.find((q: any) => q.id === answer.questionId);
+      if (!question) {
+        return null;
+      }
+
+      const isCorrect = answer.selectedOptionIndex === question.correctAnswerIndex;
+      if (isCorrect) {
+        correctCount++;
+      }
+
+      return {
+        questionId: answer.questionId,
+        question: question.questionText,
+        selectedOption: question.options[answer.selectedOptionIndex],
+        correctOption: question.options[question.correctAnswerIndex],
+        isCorrect,
+      };
+    }).filter(Boolean);
+
+    // Store answers in assessment plan
+    await prisma.assessmentPlan.update({
+      where: { id: assessmentPlan.id },
+      data: {
+        interviewPlan: {
+          ...plan,
+          mcqAnswers,
+        },
+      },
+    });
+
+    const totalQuestions = mcqQuestions.length;
+    const percentage = Math.round((correctCount / totalQuestions) * 100);
+
     res.json({
       success: true,
       data: {
-        score: 18,
-        totalQuestions: 20,
-        percentage: 90,
+        score: correctCount,
+        totalQuestions,
+        percentage,
       },
     });
   } catch (error) {
@@ -333,11 +640,70 @@ router.get('/coding', async (req: AuthRequest, res: Response, next: NextFunction
 // Submit coding challenge
 router.post('/coding/submit', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    const { challengeId, code, language } = req.body;
+
+    if (!code || !language || !challengeId) {
+      throw new AppError('challengeId, code, and language are required', 400, 'VALIDATION_ERROR');
+    }
+
+    // Get assessment plan with stored challenges
+    const assessmentPlan = await prisma.assessmentPlan.findFirst({
+      where: { userId: req.user!.id, status: 'DRAFT' },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!assessmentPlan || !assessmentPlan.interviewPlan) {
+      throw new AppError('Assessment plan not found', 404, 'NOT_FOUND');
+    }
+
+    const plan = assessmentPlan.interviewPlan as any;
+    const codingChallenges = plan.codingChallenges || [];
+    const challenge = codingChallenges.find((c: any) => c.id === challengeId);
+
+    if (!challenge) {
+      throw new AppError('Challenge not found', 404, 'NOT_FOUND');
+    }
+
+    // Evaluate using LLM
+    const evaluation = await componentEvaluatorService.evaluateCodeAnswer(
+      challenge.questionText,
+      language,
+      challenge.evaluationCriteria,
+      code
+    );
+
+    const score = componentEvaluatorService.calculateCodeScore(evaluation);
+
+    // Store submission in assessment plan
+    const codeAnswers = plan.codeAnswers || [];
+    codeAnswers.push({
+      questionId: challengeId,
+      question: challenge.questionText,
+      language,
+      submission: code,
+      evaluation,
+      score,
+    });
+
+    await prisma.assessmentPlan.update({
+      where: { id: assessmentPlan.id },
+      data: {
+        interviewPlan: {
+          ...plan,
+          codeAnswers,
+        },
+      },
+    });
+
     res.json({
       success: true,
       data: {
-        passed: true,
-        testResults: [],
+        passed: score >= 60,
+        score,
+        dimensions: evaluation.dimensions,
+        feedback: evaluation.feedback,
+        strengths: evaluation.strengths,
+        improvements: evaluation.improvements,
       },
     });
   } catch (error) {

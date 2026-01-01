@@ -33,13 +33,16 @@ app.set('trust proxy', 'loopback');
 // Security middleware
 app.use(helmet());
 
-// CORS
-app.use(
-  cors({
-    origin: config.frontendUrl,
-    credentials: true,
-  })
-);
+// CORS - Production whitelist
+const corsOptions = {
+  origin:
+    config.nodeEnv === 'production'
+      ? [config.frontendUrl, /\.railway\.app$/]
+      : config.frontendUrl,
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));

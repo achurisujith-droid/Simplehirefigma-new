@@ -42,6 +42,10 @@ interface Config {
   anthropic: {
     apiKey: string;
   };
+  elevenlabs: {
+    apiKey: string;
+    agentId: string;
+  };
   multiLLM: {
     enabled: boolean;
     providers: string[];
@@ -98,6 +102,10 @@ export const config: Config = {
   },
   anthropic: {
     apiKey: process.env.ANTHROPIC_API_KEY || '',
+  },
+  elevenlabs: {
+    apiKey: process.env.ELEVENLABS_API_KEY || '',
+    agentId: process.env.ELEVENLABS_AGENT_ID || '',
   },
   multiLLM: {
     enabled: process.env.ENABLE_MULTI_LLM_ARBITER === 'true',

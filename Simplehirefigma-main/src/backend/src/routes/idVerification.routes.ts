@@ -254,4 +254,51 @@ router.get('/status', async (req: AuthRequest, res: Response, next: NextFunction
   }
 });
 
+// Admin endpoint: Approve verification
+router.post('/admin/approve/:verificationId', async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    // TODO: Add admin role check middleware here
+    // For now, just check if user is authenticated
+    
+    const { verificationId } = req.params;
+    const { approved, notes } = req.body;
+
+    const verification = await prisma.iDVerification.findUnique({
+      where: { id: verificationId },
+    });
+
+    if (!verification) {
+      throw new AppError('Verification not found', 404, 'NOT_FOUND');
+    }
+
+    // Update verification status
+    const updated = await prisma.iDVerification.update({
+      where: { id: verificationId },
+      data: {
+        status: approved ? 'verified' : 'rejected',
+        reviewedAt: new Date(),
+        reviewNotes: notes || verification.reviewNotes,
+      },
+    });
+
+    // Update user data status
+    await prisma.userData.update({
+      where: { userId: verification.userId },
+      data: {
+        idVerificationStatus: approved ? 'verified' : 'rejected',
+      },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        verificationId: updated.id,
+        status: updated.status,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

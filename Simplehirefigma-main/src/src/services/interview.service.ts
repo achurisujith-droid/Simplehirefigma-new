@@ -8,6 +8,33 @@ import type { ApiResponse, MCQQuestion, CodingChallenge, SkillAssessment } from 
 
 export const interviewService = {
   /**
+   * Start assessment with resume upload
+   */
+  async startAssessment(
+    resume: File,
+    idCard?: File
+  ): Promise<ApiResponse<{
+    sessionId: string;
+    plan: any;
+    analysis: any;
+    voiceQuestions: any[];
+    resumeUrl: string;
+    idCardUrl?: string;
+  }>> {
+    const formData = new FormData();
+    formData.append('resume', resume);
+    if (idCard) {
+      formData.append('idCard', idCard);
+    }
+
+    return apiClient.post('/interviews/start-assessment', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+
+  /**
    * Upload interview documents (resume, cover letter)
    */
   async uploadDocuments(

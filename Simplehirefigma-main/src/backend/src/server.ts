@@ -10,7 +10,9 @@ import logger from './config/logger';
 import { testDatabaseConnection, checkDatabaseHealth, disconnectDatabase } from './config/database';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { authenticate } from './middleware/auth';
+import { auditLogger } from './middleware/audit-logger';
 import { validateEnvironmentOrExit } from './utils/validateEnv';
+import { sessionManager } from './services/session-manager';
 
 // Import routes
 import authRoutes from './routes/auth.routes';
@@ -33,13 +35,16 @@ app.set('trust proxy', 'loopback');
 // Security middleware
 app.use(helmet());
 
-// CORS
-app.use(
-  cors({
-    origin: config.frontendUrl,
-    credentials: true,
-  })
-);
+// CORS - Production whitelist
+const corsOptions = {
+  origin:
+    config.nodeEnv === 'production'
+      ? [config.frontendUrl, /^https:\/\/[a-z0-9-]+\.railway\.app$/]
+      : config.frontendUrl,
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
@@ -52,6 +57,9 @@ app.use(compression());
 if (config.nodeEnv !== 'production') {
   app.use(morgan('dev'));
 }
+
+// Audit logging for all API requests
+app.use(auditLogger);
 
 // Rate limiting
 const limiter = rateLimit({
@@ -195,6 +203,10 @@ async function startServer() {
     setupGracefulShutdown(server);
     logger.info('✅ Graceful shutdown handlers configured');
     
+    logger.info('🧹 Setting up session cleanup scheduler...');
+    setupSessionCleanup();
+    logger.info('✅ Session cleanup scheduler configured');
+    
     logger.info('✨ Server startup complete!');
   } catch (error) {
     logger.error('❌ CRITICAL: Failed to start server');
@@ -287,6 +299,20 @@ function setupGracefulShutdown(server: any): void {
     logger.error('Unhandled Rejection:', err);
     process.exit(1);
   });
+}
+
+/**
+ * Setup periodic session cleanup
+ */
+function setupSessionCleanup(): void {
+  // Clean up old sessions every hour
+  setInterval(() => {
+    sessionManager.cleanupOldSessions().catch((error) => {
+      logger.error('Session cleanup error', error);
+    });
+  }, 60 * 60 * 1000); // Every hour
+  
+  logger.info('Session cleanup will run every hour');
 }
 
 // Start the server only if not in test environment

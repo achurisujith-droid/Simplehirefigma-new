@@ -2,6 +2,7 @@ import { Response, NextFunction } from 'express';
 import { AuthRequest } from '../types';
 import prisma from '../config/database';
 import { AppError } from '../utils/errors';
+import { comparePassword, hashPassword } from '../utils/password';
 
 export const getUserData = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -171,6 +172,57 @@ export const updateReferenceCheckStatus = async (
       success: true,
       data: userData,
       message: 'Status updated',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const changePassword = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      throw new AppError('currentPassword and newPassword are required', 400, 'VALIDATION_ERROR');
+    }
+
+    // Get user with password hash
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id },
+    });
+
+    if (!user || !user.passwordHash) {
+      throw new AppError('User not found', 404, 'NOT_FOUND');
+    }
+
+    // Verify current password
+    const isValidPassword = await comparePassword(currentPassword, user.passwordHash);
+
+    if (!isValidPassword) {
+      throw new AppError('Current password is incorrect', 401, 'INVALID_CREDENTIALS');
+    }
+
+    // Hash new password
+    const newPasswordHash = await hashPassword(newPassword);
+
+    // Update password
+    await prisma.user.update({
+      where: { id: req.user!.id },
+      data: { passwordHash: newPasswordHash },
+    });
+
+    // Invalidate all refresh tokens for this user (force re-login on all devices)
+    await prisma.refreshToken.deleteMany({
+      where: { userId: req.user!.id },
+    });
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully. Please log in again on all devices.',
     });
   } catch (error) {
     next(error);

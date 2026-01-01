@@ -42,6 +42,10 @@ interface Config {
   anthropic: {
     apiKey: string;
   };
+  elevenlabs: {
+    apiKey: string;
+    agentId: string;
+  };
   multiLLM: {
     enabled: boolean;
     providers: string[];
@@ -54,6 +58,9 @@ interface Config {
   fileUpload: {
     maxFileSize: number;
     maxAudioSize: number;
+  };
+  redis: {
+    url: string;
   };
   bcryptRounds: number;
   logLevel: string;
@@ -99,6 +106,10 @@ export const config: Config = {
   anthropic: {
     apiKey: process.env.ANTHROPIC_API_KEY || '',
   },
+  elevenlabs: {
+    apiKey: process.env.ELEVENLABS_API_KEY || '',
+    agentId: process.env.ELEVENLABS_AGENT_ID || '',
+  },
   multiLLM: {
     enabled: process.env.ENABLE_MULTI_LLM_ARBITER === 'true',
     providers: (process.env.LLM_PROVIDERS || 'gpt-4o').split(','),
@@ -111,6 +122,9 @@ export const config: Config = {
   fileUpload: {
     maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760', 10),
     maxAudioSize: parseInt(process.env.MAX_AUDIO_SIZE || '52428800', 10),
+  },
+  redis: {
+    url: process.env.REDIS_URL || '',
   },
   bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS || '12', 10),
   logLevel: process.env.LOG_LEVEL || 'info',

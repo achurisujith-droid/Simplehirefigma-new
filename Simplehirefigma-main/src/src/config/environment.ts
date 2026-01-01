@@ -42,7 +42,7 @@ const stagingConfig: EnvironmentConfig = {
 };
 
 const productionConfig: EnvironmentConfig = {
-  apiBaseUrl: getEnvVar('VITE_API_BASE_URL', 'https://api.simplehire.ai/api'),
+apiBaseUrl: getEnvVar('VITE_API_BASE_URL', 'https://simplehire1.up.railway.app/api'),  
   environment: 'production',
   enableLogging: false,
   apiTimeout: 30000,

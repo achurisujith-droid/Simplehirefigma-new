@@ -26,6 +26,7 @@ import certificateRoutes from './routes/certificate.routes';
 import sessionRoutes from './modules/session/session.routes';
 import assessmentRoutes from './modules/assessment/assessment.routes';
 import proctoringRoutes from './modules/proctoring/proctoring.routes';
+import seedRouter from './routes/seed.routes';
 
 // Validate environment variables before starting the app
 validateEnvironmentOrExit();
@@ -129,6 +130,7 @@ app.get('/health', async (req, res) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', seedRouter);
 app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/payments', paymentRoutes);

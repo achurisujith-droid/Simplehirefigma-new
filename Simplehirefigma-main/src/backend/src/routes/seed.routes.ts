@@ -37,7 +37,7 @@ const demoUsers = [
   },
 ];
 
-seedRouter.post('/seed-database', async (req, res) => {
+seedRouter.all('/seed-database', async (req, res) => {
   try {
     let createdCount = 0;
 

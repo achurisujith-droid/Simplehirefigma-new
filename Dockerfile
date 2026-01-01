@@ -73,6 +73,7 @@ COPY --from=builder /app/Simplehirefigma-main/src/backend/node_modules ./node_mo
 COPY --from=builder /app/Simplehirefigma-main/src/backend/package*.json ./
 COPY --from=builder /app/Simplehirefigma-main/src/backend/prisma ./prisma
 COPY --from=builder /app/Simplehirefigma-main/src/backend/scripts ./scripts
+COPY --from=builder /app/Simplehirefigma-main/src/backend/config ./config
 COPY --from=builder /app/Simplehirefigma-main/dist ./public
 
 # Runtime verification

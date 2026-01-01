@@ -56,7 +56,8 @@ afterEach(async () => {
 afterAll(async () => {
   try {
     // Ensure any pending operations complete before disconnecting
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // Increased delay to 500ms to allow all async operations to complete
+    await new Promise((resolve) => setTimeout(resolve, 500));
     await prisma.$disconnect();
   } catch (error) {
     console.error('Error disconnecting Prisma:', error instanceof Error ? error.message : error);

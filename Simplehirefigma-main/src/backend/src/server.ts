@@ -10,6 +10,7 @@ import logger from './config/logger';
 import { testDatabaseConnection, checkDatabaseHealth, disconnectDatabase } from './config/database';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { authenticate } from './middleware/auth';
+import { auditLogger } from './middleware/audit-logger';
 import { validateEnvironmentOrExit } from './utils/validateEnv';
 
 // Import routes
@@ -55,6 +56,9 @@ app.use(compression());
 if (config.nodeEnv !== 'production') {
   app.use(morgan('dev'));
 }
+
+// Audit logging for all API requests
+app.use(auditLogger);
 
 // Rate limiting
 const limiter = rateLimit({

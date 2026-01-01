@@ -12,7 +12,12 @@ npx prisma migrate deploy
 
 # Run database seeding (idempotent - safe to run multiple times)
 echo "🌱 Running database seed..."
-npm run prisma:seed || echo "⚠️  Seeding failed or skipped (this is non-critical)"
+if npm run prisma:seed; then
+  echo "✅ Database seeding completed successfully"
+else
+  echo "⚠️  Database seeding failed (exit code: $?)"
+  echo "⚠️  This is non-critical if users already exist. Continuing..."
+fi
 
 # Verify runtime environment
 echo "✅ Verifying runtime environment..."

@@ -72,6 +72,15 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
     // Log signup event
     logger.info(`User signed up: ${user.email}`, { userId: user.id });
 
+    // Set HTTP-only session cookie
+    res.cookie('session', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/',
+    });
+
     res.status(201).json({
       success: true,
       data: {
@@ -137,6 +146,15 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
 
     // Log login event
     logger.info(`User logged in: ${user.email}`, { userId: user.id });
+
+    // Set HTTP-only session cookie
+    res.cookie('session', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/',
+    });
 
     res.json({
       success: true,
@@ -224,6 +242,15 @@ export const logout = async (req: AuthRequest, res: Response, next: NextFunction
     // Or you can pass specific refresh token to delete only that session
     await prisma.refreshToken.deleteMany({
       where: { userId: req.user!.id },
+    });
+
+    // Clear the session cookie
+    res.cookie('session', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 0,
+      path: '/',
     });
 
     res.json({

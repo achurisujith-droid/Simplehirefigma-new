@@ -6,13 +6,22 @@ import { AppError } from '../utils/errors';
 
 export const authenticate = (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    let token: string | undefined;
+    
+    // Check Authorization header first
     const authHeader = req.headers.authorization;
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new AppError('No token provided', 401, 'UNAUTHORIZED');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    }
+    
+    // Fallback to session cookie
+    if (!token && req.cookies?.session) {
+      token = req.cookies.session;
     }
 
-    const token = authHeader.substring(7);
+    if (!token) {
+      throw new AppError('No token provided', 401, 'UNAUTHORIZED');
+    }
 
     const decoded = jwt.verify(token, config.jwt.secret) as TokenPayload;
 
@@ -36,14 +45,23 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
 
 export const optionalAuth = (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    let token: string | undefined;
+    
+    // Check Authorization header first
     const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    }
+    
+    // Fallback to session cookie
+    if (!token && req.cookies?.session) {
+      token = req.cookies.session;
+    }
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!token) {
       req.user = undefined;
       return next();
     }
-
-    const token = authHeader.substring(7);
 
     try {
       const decoded = jwt.verify(token, config.jwt.secret) as TokenPayload;

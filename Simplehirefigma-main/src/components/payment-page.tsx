@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { CreditCard, Lock, Check, ArrowLeft } from "lucide-react";
+import { paymentService } from "../src/services/payment.service";
+import { toast } from "sonner";
 
 interface PaymentPageProps {
   selectedPlan: {
+    id: string;
     name: string;
     price: string;
   };
@@ -93,11 +96,47 @@ export function PaymentPage({ selectedPlan, onPaymentSuccess, onBack }: PaymentP
 
     setIsProcessing(true);
     
-    // Simulate payment processing
-    setTimeout(() => {
+    try {
+      // Step 1: Create payment intent
+      const intentResponse = await paymentService.createPaymentIntent(selectedPlan.id);
+      
+      if (!intentResponse.success || !intentResponse.data) {
+        toast.error("Failed to initialize payment");
+        setIsProcessing(false);
+        return;
+      }
+      
+      // Check if backend is in placeholder mode
+      if (intentResponse.data.message && intentResponse.data.message.includes('Placeholder')) {
+        toast.success("Payment successful! (Test mode)");
+        onPaymentSuccess();
+        return;
+      }
+      
+      const { paymentIntentId } = intentResponse.data;
+      
+      // Step 2: For demo/test mode, simulate payment method creation
+      // In production, this would use Stripe Elements
+      const mockPaymentMethodId = "pm_card_visa";
+      
+      // Step 3: Confirm payment with backend
+      const confirmResponse = await paymentService.confirmPayment(
+        paymentIntentId,
+        mockPaymentMethodId
+      );
+      
+      if (confirmResponse.success && confirmResponse.data?.success) {
+        toast.success("Payment successful!");
+        onPaymentSuccess();
+      } else {
+        toast.error(confirmResponse.error || "Payment failed");
+      }
+    } catch (error) {
+      console.error("Payment error:", error);
+      toast.error("Payment processing error. Please try again.");
+    } finally {
       setIsProcessing(false);
-      onPaymentSuccess();
-    }, 2000);
+    }
   };
 
   return (

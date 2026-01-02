@@ -94,7 +94,8 @@ export default function App() {
         });
         
         // Navigate to appropriate page based on products
-        if (response.data.purchasedProducts && response.data.purchasedProducts.length > 0) {
+        const products = response.data.purchasedProducts ?? [];
+        if (products.length > 0) {
           setCurrentPage("My products");
         } else {
           setCurrentPage("Dashboard");
@@ -280,6 +281,26 @@ export default function App() {
           }}
         />;
       case "My products":
+        // If user has no products, redirect to Dashboard to see pricing plans
+        if (!userData.purchasedProducts || userData.purchasedProducts.length === 0) {
+          setCurrentPage("Dashboard");
+          return <DashboardPage 
+            onSelectPlan={(plan) => setSelectedPlan(plan)}
+            purchasedProducts={userData.purchasedProducts}
+            interviewProgress={userData.interviewProgress}
+            idVerificationStatus={userData.idVerificationStatus}
+            referenceCheckStatus={userData.referenceCheckStatus}
+            references={userData.references}
+            onStartInterview={handleStartOrContinueInterview}
+            onStartIdVerification={() => setCurrentPage("IdVerification")}
+            onStartReferenceCheck={() => setCurrentPage("ReferenceCheck")}
+            onViewCertificate={(productId) => {
+              if (productId === 'skill') {
+                setCurrentPage("InterviewCert");
+              }
+            }}
+          />;
+        }
         return <MyProductsPage 
           purchasedProducts={userData.purchasedProducts}
           interviewProgress={userData.interviewProgress}

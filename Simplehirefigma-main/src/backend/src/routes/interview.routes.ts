@@ -106,6 +106,83 @@ router.post(
   }
 );
 
+// Start assessment - Upload documents and create assessment plan
+router.post(
+  '/start-assessment',
+  upload.fields([
+    { name: 'resume', maxCount: 1 },
+    { name: 'idCard', maxCount: 1 },
+  ]),
+  async (req: AuthRequest, res: Response, next: NextFunction) => {
+    try {
+      const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+      if (!files.resume) {
+        throw new AppError('Resume is required', 400, 'VALIDATION_ERROR');
+      }
+
+      // Upload resume
+      const resumeResult = await uploadFile(files.resume[0], 'resumes');
+      
+      // Upload ID card if provided
+      let idCardUrl: string | undefined;
+      if (files.idCard) {
+        const idCardResult = await uploadFile(files.idCard[0], 'id-cards');
+        idCardUrl = idCardResult.url;
+      }
+
+      // Create or update assessment plan for this user
+      const existingPlan = await prisma.assessmentPlan.findFirst({
+        where: { userId: req.user!.id, status: 'DRAFT' },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      let assessmentPlan;
+      
+      if (existingPlan) {
+        // Update existing plan with resume info
+        assessmentPlan = await prisma.assessmentPlan.update({
+          where: { id: existingPlan.id },
+          data: {
+            resumeUrl: resumeResult.url,
+            resumeText: '', // Will be populated by resume parser later
+            interviewPlan: {
+              ...(existingPlan.interviewPlan as any || {}),
+              resumeUrl: resumeResult.url,
+              ...(idCardUrl && { idCardUrl }),
+            },
+          },
+        });
+      } else {
+        // Create new assessment plan
+        assessmentPlan = await prisma.assessmentPlan.create({
+          data: {
+            userId: req.user!.id,
+            resumeUrl: resumeResult.url,
+            resumeText: '', // Will be populated by resume parser later
+            status: 'DRAFT',
+            interviewPlan: {
+              resumeUrl: resumeResult.url,
+              ...(idCardUrl && { idCardUrl }),
+            },
+          },
+        });
+      }
+
+      res.json({
+        success: true,
+        data: {
+          sessionId: assessmentPlan.id,
+          resumeUrl: resumeResult.url,
+          ...(idCardUrl && { idCardUrl }),
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
 // Start voice interview
 router.post('/voice/start', async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {

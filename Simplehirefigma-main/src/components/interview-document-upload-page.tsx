@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Upload, FileText, User, CreditCard, CheckCircle2, AlertCircle, ArrowRight } from "lucide-react";
 import { Button } from "./ui/button";
+import { interviewService } from "../src/services/interview.service";
+import { toast } from "sonner";
 
 interface InterviewDocumentUploadPageProps {
   onComplete: () => void;
@@ -11,6 +13,7 @@ export function InterviewDocumentUploadPage({ onComplete }: InterviewDocumentUpl
   const [resumeFile, setResumeFile] = useState<File | null>(null);
   const [idCardFile, setIdCardFile] = useState<File | null>(null);
   const [errors, setErrors] = useState<{ fullName?: string; resume?: string; idCard?: string }>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleResumeUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -50,7 +53,7 @@ export function InterviewDocumentUploadPage({ onComplete }: InterviewDocumentUpl
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const newErrors: { fullName?: string; resume?: string; idCard?: string } = {};
 
     if (!fullName.trim()) {
@@ -68,8 +71,33 @@ export function InterviewDocumentUploadPage({ onComplete }: InterviewDocumentUpl
       return;
     }
 
-    // All validations passed
-    onComplete();
+    // Upload documents to backend
+    setIsSubmitting(true);
+    try {
+      const response = await interviewService.startAssessment(resumeFile!, idCardFile);
+      
+      if (!response.success) {
+        toast.error('Failed to upload documents', {
+          description: response.error || 'Please try again',
+        });
+        return;
+      }
+
+      // Store the sessionId/planId for later use
+      if (response.data?.sessionId) {
+        localStorage.setItem('assessmentPlanId', response.data.sessionId);
+      }
+
+      toast.success('Documents uploaded successfully');
+      onComplete();
+    } catch (error) {
+      console.error('Error uploading documents:', error);
+      toast.error('Failed to upload documents', {
+        description: 'Please try again',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const formatFileSize = (bytes: number) => {
@@ -78,7 +106,7 @@ export function InterviewDocumentUploadPage({ onComplete }: InterviewDocumentUpl
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   };
 
-  const isFormValid = fullName.trim() && resumeFile && idCardFile;
+  const isFormValid = fullName.trim() && resumeFile && idCardFile && !isSubmitting;
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-50">
@@ -271,7 +299,12 @@ export function InterviewDocumentUploadPage({ onComplete }: InterviewDocumentUpl
                   : 'bg-slate-300 cursor-not-allowed'
               }`}
             >
-              {isFormValid ? (
+              {isSubmitting ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  Uploading documents...
+                </>
+              ) : isFormValid ? (
                 <>
                   Continue to Interview Preparation
                   <ArrowRight className="w-5 h-5 ml-2" />

@@ -146,6 +146,9 @@ app.use('/api/certificates', certificateRoutes);
 app.use('/api/session', sessionRoutes);
 app.use('/api/proctoring', authenticate, proctoringRoutes);
 
+// Serve uploaded files when using local storage
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
 // Serve static frontend files (production only)
 if (config.nodeEnv === 'production') {
   const frontendPath = path.join(__dirname, '..', 'public');

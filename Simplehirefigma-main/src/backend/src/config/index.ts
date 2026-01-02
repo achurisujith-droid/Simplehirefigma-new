@@ -36,6 +36,11 @@ interface Config {
     clientId: string;
     clientSecret: string;
   };
+  gcs?: {
+    projectId: string;
+    bucket: string;
+    keyFile?: string;
+  };
   openai: {
     apiKey: string;
   };
@@ -104,6 +109,11 @@ export const config: Config = {
     clientId: process.env.GOOGLE_CLIENT_ID || '',
     clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
   },
+  gcs: process.env.GCS_BUCKET && process.env.GCS_PROJECT_ID ? {
+    projectId: process.env.GCS_PROJECT_ID,
+    bucket: process.env.GCS_BUCKET,
+    keyFile: process.env.GCS_KEYFILE || process.env.GOOGLE_APPLICATION_CREDENTIALS || '',
+  } : undefined,
   openai: {
     apiKey: process.env.OPENAI_API_KEY || '',
   },

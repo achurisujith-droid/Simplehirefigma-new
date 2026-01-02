@@ -330,7 +330,7 @@ export function DashboardPage({
           </Card>
         </div>
 
-        {/* Pricing Grid */}
+        {/* Pricing Grid - Shows all plans for first-time users */}
         <div className="mb-8">
           <div className="text-center mb-8">
             <h2 className="text-slate-900 mb-2">Choose your verification plan</h2>
@@ -471,7 +471,6 @@ export function DashboardPage({
               <h3 className="text-slate-900 mb-2">Complete combo</h3>
               <div className="mb-4">
                 <span className="text-3xl text-slate-900">$60</span>
-                <span className="text-sm text-slate-600 ml-2 line-through">$65</span>
               </div>
               <p className="text-sm text-slate-600 mb-4">
                 All three verifications at a discounted price
@@ -505,7 +504,7 @@ export function DashboardPage({
           </div>
         </div>
 
-        {/* Get Started CTA - Removed as we now have pricing grid */}
+        {/* Help CTA for questions */}
         <Card className="p-8 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex-1 text-center md:text-left">

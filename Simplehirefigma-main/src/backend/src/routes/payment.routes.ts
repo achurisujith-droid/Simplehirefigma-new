@@ -53,7 +53,9 @@ router.post('/create-intent', async (req: AuthRequest, res: Response, next: Next
 
       // Handle combo product - adds all 3 individual products
       if (productId === 'combo') {
-        products = ['skill', 'id-visa', 'reference'];
+        // Merge with existing products, ensuring all 3 combo products are added
+        const comboProducts = ['skill', 'id-visa', 'reference'];
+        products = [...new Set([...products, ...comboProducts])];
       } else if (!products.includes(productId)) {
         products.push(productId);
       }

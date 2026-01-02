@@ -91,7 +91,16 @@ export function InterviewLivePage({ onComplete, sessionId }: InterviewLivePagePr
         const data: { success: boolean; data: VoiceStartResponse } = await response.json();
         
         if (data.success && data.data) {
-          setQuestions(data.data.questions);
+          // Map backend format to frontend format
+          // Backend returns: { id, question, category }
+          // Frontend expects: { id, text, topic }
+          const mappedQuestions = data.data.questions.map((q: any) => ({
+            id: q.id,
+            text: q.question || q.text,  // Backend uses 'question', fallback to 'text'
+            topic: q.category || q.topic || 'General'  // Backend uses 'category'
+          }));
+          
+          setQuestions(mappedQuestions);
           setVoiceSessionId(data.data.sessionId);
           setCandidateName(data.data.candidateName);
           setJobRole(data.data.jobRole);

@@ -56,7 +56,7 @@ export const PRODUCTS: ProductConfig[] = [
     id: 'skill',
     name: 'Skill verification',
     description: 'AI-powered interview validates your professional skills',
-    price: 4900, // $49.00 in cents
+    price: 3000, // $30.00 in cents
     features: [
       '15-min AI interview',
       'MCQ test (20 questions)',
@@ -68,7 +68,7 @@ export const PRODUCTS: ProductConfig[] = [
     id: 'id-visa',
     name: 'ID + Visa verification',
     description: 'Validate government ID and work authorization',
-    price: 1500, // $15.00 in cents
+    price: 2000, // $20.00 in cents
     features: [
       'ID document verification',
       'Visa/EAD check',
@@ -80,7 +80,7 @@ export const PRODUCTS: ProductConfig[] = [
     id: 'reference',
     name: 'Reference check',
     description: 'Professional references collection and verification',
-    price: 1000, // $10.00 in cents
+    price: 1500, // $15.00 in cents
     features: [
       'Up to 5 references',
       'Automated email outreach',
@@ -92,12 +92,12 @@ export const PRODUCTS: ProductConfig[] = [
     id: 'combo',
     name: 'Complete combo',
     description: 'All three verifications at a discounted price',
-    price: 6000, // $60.00 in cents (save $14)
+    price: 6000, // $60.00 in cents (save $5)
     features: [
       'All skill verification features',
       'All ID verification features',
       'All reference check features',
-      'Save $14',
+      'Save $5',
     ],
   },
 ];

@@ -64,6 +64,10 @@ interface Config {
   };
   bcryptRounds: number;
   logLevel: string;
+  cookie: {
+    name: string;
+    maxAge: number;
+  };
 }
 
 export const config: Config = {
@@ -128,6 +132,21 @@ export const config: Config = {
   },
   bcryptRounds: parseInt(process.env.BCRYPT_ROUNDS || '12', 10),
   logLevel: process.env.LOG_LEVEL || 'info',
+  cookie: {
+    name: 'session',
+    maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  },
 };
+
+/**
+ * Get cookie options for session cookies
+ */
+export const getSessionCookieOptions = (clear = false) => ({
+  httpOnly: true,
+  secure: config.nodeEnv === 'production',
+  sameSite: 'lax' as const,
+  maxAge: clear ? 0 : config.cookie.maxAge,
+  path: '/',
+});
 
 export default config;

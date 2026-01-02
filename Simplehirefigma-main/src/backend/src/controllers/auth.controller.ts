@@ -6,6 +6,7 @@ import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '.
 import { AppError } from '../utils/errors';
 import { sha256Hash } from '../utils/crypto';
 import logger from '../config/logger';
+import config, { getSessionCookieOptions } from '../config';
 
 export const signup = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -72,6 +73,9 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
     // Log signup event
     logger.info(`User signed up: ${user.email}`, { userId: user.id });
 
+    // Set HTTP-only session cookie
+    res.cookie(config.cookie.name, token, getSessionCookieOptions());
+
     res.status(201).json({
       success: true,
       data: {
@@ -137,6 +141,9 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
 
     // Log login event
     logger.info(`User logged in: ${user.email}`, { userId: user.id });
+
+    // Set HTTP-only session cookie
+    res.cookie(config.cookie.name, token, getSessionCookieOptions());
 
     res.json({
       success: true,
@@ -225,6 +232,9 @@ export const logout = async (req: AuthRequest, res: Response, next: NextFunction
     await prisma.refreshToken.deleteMany({
       where: { userId: req.user!.id },
     });
+
+    // Clear the session cookie
+    res.cookie(config.cookie.name, '', getSessionCookieOptions(true));
 
     res.json({
       success: true,

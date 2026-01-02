@@ -70,6 +70,26 @@ router.post('/create-intent', async (req: AuthRequest, res: Response, next: Next
         update: { purchasedProducts: products },
       });
 
+      // Before creating payment record, verify product exists in database
+      const productExists = await prisma.product.findUnique({
+        where: { id: productId },
+      });
+
+      if (!productExists) {
+        console.warn(`⚠️  Product ${productId} not found in database, skipping payment record creation`);
+        // Still add to purchasedProducts but don't create payment record
+        // This is acceptable in placeholder mode - users still get feature access
+        return res.status(200).json({ 
+          message: 'Products added successfully (placeholder mode - payment record not created)',
+          success: true,
+          warning: 'Product not found in database, payment record skipped',
+          data: {
+            purchasedProduct: productId,
+            addedProducts: products
+          }
+        });
+      }
+
       // Create payment record with test mode status
       await prisma.payment.create({
         data: {
@@ -148,6 +168,25 @@ router.post('/confirm', async (req: AuthRequest, res: Response, next: NextFuncti
       },
       update: { purchasedProducts: products },
     });
+
+    // Before creating payment record, verify product exists in database
+    const productExists = await prisma.product.findUnique({
+      where: { id: productId },
+    });
+
+    if (!productExists) {
+      console.warn(`⚠️  Product ${productId} not found in database, skipping payment record creation`);
+      // Still return success as products were added to user
+      // Log warning for monitoring but don't fail the payment confirmation
+      return res.json({
+        success: true,
+        warning: 'Product not found in database, payment record skipped',
+        data: {
+          success: true,
+          purchasedProduct: productId,
+        },
+      });
+    }
 
     // Record payment
     await prisma.payment.create({

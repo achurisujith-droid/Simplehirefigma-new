@@ -70,6 +70,24 @@ router.post('/create-intent', async (req: AuthRequest, res: Response, next: Next
         update: { purchasedProducts: products },
       });
 
+      // Before creating payment record, verify product exists in database
+      const productExists = await prisma.product.findUnique({
+        where: { id: productId },
+      });
+
+      if (!productExists) {
+        console.warn(`⚠️  Product ${productId} not found in database, skipping payment record creation`);
+        // Still add to purchasedProducts but don't create payment record
+        return res.status(200).json({ 
+          message: 'Products added (payment record skipped - product not in database)',
+          success: true,
+          data: {
+            purchasedProduct: productId,
+            addedProducts: products
+          }
+        });
+      }
+
       // Create payment record with test mode status
       await prisma.payment.create({
         data: {
@@ -148,6 +166,23 @@ router.post('/confirm', async (req: AuthRequest, res: Response, next: NextFuncti
       },
       update: { purchasedProducts: products },
     });
+
+    // Before creating payment record, verify product exists in database
+    const productExists = await prisma.product.findUnique({
+      where: { id: productId },
+    });
+
+    if (!productExists) {
+      console.warn(`⚠️  Product ${productId} not found in database, skipping payment record creation`);
+      // Still return success as products were added to user
+      return res.json({
+        success: true,
+        data: {
+          success: true,
+          purchasedProduct: productId,
+        },
+      });
+    }
 
     // Record payment
     await prisma.payment.create({

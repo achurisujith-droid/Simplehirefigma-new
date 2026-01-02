@@ -15,6 +15,50 @@ const hashPassword = async (password: string): Promise<string> => {
   return bcrypt.hash(password, saltRounds);
 };
 
+// Products to seed (must match PRODUCTS constant in types/index.ts)
+const products = [
+  {
+    id: 'skill',
+    name: 'Skill Interview',
+    type: 'interview',
+    price: 3000, // $30 in cents
+    currency: 'usd',
+    description: 'Complete skill verification with voice interview, MCQ test, and coding challenge',
+    features: JSON.stringify(['Voice interview', 'MCQ test', 'Coding challenge', 'AI evaluation']),
+    active: true,
+  },
+  {
+    id: 'id-visa',
+    name: 'ID + Visa Verification',
+    type: 'verification',
+    price: 2000, // $20 in cents
+    currency: 'usd',
+    description: 'Identity and visa document verification',
+    features: JSON.stringify(['ID document check', 'Visa verification', 'Face matching']),
+    active: true,
+  },
+  {
+    id: 'reference',
+    name: 'Reference Check',
+    type: 'reference',
+    price: 1500, // $15 in cents
+    currency: 'usd',
+    description: 'Professional reference verification',
+    features: JSON.stringify(['Up to 5 references', 'Email verification', 'Automated outreach']),
+    active: true,
+  },
+  {
+    id: 'combo',
+    name: 'Complete Verification Bundle',
+    type: 'bundle',
+    price: 6000, // $60 in cents
+    currency: 'usd',
+    description: 'All verifications bundled at a discount',
+    features: JSON.stringify(['Skill interview', 'ID + Visa verification', 'Reference check', 'Priority support']),
+    active: true,
+  },
+];
+
 // Demo users matching the LoginPage mockUsers
 const demoUsers = [
   {
@@ -106,6 +150,30 @@ const demoUsers = [
 async function main() {
   console.log('🌱 Starting database seed...');
 
+  // Seed products first (required for payment foreign keys)
+  console.log('\n📦 Seeding products...');
+  for (const product of products) {
+    try {
+      const existingProduct = await prisma.product.findUnique({
+        where: { id: product.id },
+      });
+
+      if (existingProduct) {
+        console.log(`⏭️  Product ${product.id} already exists, skipping...`);
+        continue;
+      }
+
+      await prisma.product.create({
+        data: product,
+      });
+      console.log(`✅ Created product: ${product.id} (${product.name})`);
+    } catch (error) {
+      console.error(`❌ Error creating product ${product.id}:`, error);
+    }
+  }
+
+  // Then seed users
+  console.log('\n👤 Seeding demo users...');
   for (const userData of demoUsers) {
     try {
       // Check if user already exists

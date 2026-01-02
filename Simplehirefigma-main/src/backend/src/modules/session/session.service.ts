@@ -123,7 +123,13 @@ export class SessionService {
         logger.info(`Cleaned up ${result.count} old sessions`);
       }
       return result.count;
-    } catch (error) {
+    } catch (error: any) {
+      // Gracefully handle missing table (migrations not yet applied)
+      // P2021: The table does not exist in the current database
+      if (error.code === 'P2021' || error.message?.includes('does not exist')) {
+        logger.warn('Sessions table does not exist, skipping cleanup. Please run migrations.');
+        return 0;
+      }
       logger.error('Failed to cleanup old sessions', { error });
       return 0;
     }

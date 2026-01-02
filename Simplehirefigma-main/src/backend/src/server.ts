@@ -41,9 +41,16 @@ app.use(helmet());
 const corsOptions = {
   origin:
     config.nodeEnv === 'production'
-      ? [config.frontendUrl, /^https:\/\/[a-z0-9-]+\.railway\.app$/]
+      ? [
+          config.frontendUrl,
+          'https://simplehire.ai',
+          'https://www.simplehire.ai',
+          /^https:\/\/[a-z0-9-]+\.railway\.app$/,
+        ]
       : config.frontendUrl,
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 };
 
 app.use(cors(corsOptions));

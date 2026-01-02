@@ -5,9 +5,15 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import { hashPassword } from '../src/utils/password';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
+
+// Inline password hashing to avoid import issues in Docker
+const hashPassword = async (password: string): Promise<string> => {
+  const saltRounds = 12;
+  return bcrypt.hash(password, saltRounds);
+};
 
 // Demo users matching the LoginPage mockUsers
 const demoUsers = [

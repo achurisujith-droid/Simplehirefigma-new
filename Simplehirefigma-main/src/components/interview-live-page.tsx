@@ -56,6 +56,9 @@ export function InterviewLivePage({ onComplete, sessionId }: InterviewLivePagePr
   const [jobRole, setJobRole] = useState<string>('');
   const [useElevenLabs, setUseElevenLabs] = useState<boolean>(false);
 
+  // Default job role constant
+  const DEFAULT_JOB_ROLE = 'Software Engineer';
+
   // Fetch voice questions and start voice session
   useEffect(() => {
     async function loadVoiceQuestions() {
@@ -77,64 +80,7 @@ export function InterviewLivePage({ onComplete, sessionId }: InterviewLivePagePr
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            role: jobRole || 'Software Engineer' // Can be passed from parent component
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to start voice session');
-        }
-
-        const data: { success: boolean; data: VoiceStartResponse } = await response.json();
-        
-        if (data.success && data.data) {
-          setQuestions(data.data.questions);
-          setVoiceSessionId(data.data.sessionId);
-          setCandidateName(data.data.candidateName);
-          setJobRole(data.data.jobRole);
-          
-          // Check if we should use ElevenLabs
-          if (data.data.signedUrl) {
-            setUseElevenLabs(true);
-            console.log('ElevenLabs signedUrl available, will use ElevenLabs integration');
-          } else {
-            console.log('No ElevenLabs signedUrl, using fallback speech synthesis');
-          }
-        } else {
-          console.warn('No voice session data, using fallback');
-          setDefaultQuestions();
-        }
-      } catch (error) {
-        console.error('Failed to load voice questions:', error);
-        setDefaultQuestions();
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    loadVoiceQuestions();
-  }, []);
-  // Fetch voice questions and start voice session
-  useEffect(() => {
-    async function loadVoiceQuestions() {
-      try {
-        setIsLoading(true);
-        
-        const token = localStorage.getItem('token');
-        if (!token) {
-          console.warn('No authentication token found, using fallback questions');
-          setDefaultQuestions();
-          return;
-        }
-
-        // Call voice/start endpoint to get session info
-        const response = await fetch('/api/interviews/voice/start', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            role: jobRole || 'Software Engineer' // Can be passed from parent component
+            role: jobRole || DEFAULT_JOB_ROLE
           })
         });
 
@@ -273,6 +219,8 @@ export function InterviewLivePage({ onComplete, sessionId }: InterviewLivePagePr
         window.speechSynthesis.cancel();
       }
     };
+    // Dependencies: isLoading and questions.length determine when to setup media
+    // useElevenLabs, voiceSessionId, candidateName, jobRole determine if/how to setup ElevenLabs
   }, [isLoading, questions.length, useElevenLabs, voiceSessionId, candidateName, jobRole]);
 
   // Setup ElevenLabs conversation

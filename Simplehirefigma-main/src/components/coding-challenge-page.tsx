@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { Code, Clock, CheckCircle2, AlertCircle, ArrowRight, ArrowLeft } from "lucide-react";
 import { Button } from "./ui/button";
+import { interviewService } from "../src/services/interview.service";
+import { toast } from "sonner";
 
 interface CodingQuestion {
   id: string;
@@ -11,6 +13,9 @@ interface CodingQuestion {
   evaluationCriteria?: string[];
   examples?: { input: string; output: string }[];
 }
+
+// Default language to use when not specified in question
+const DEFAULT_LANGUAGE = 'JavaScript';
 
 interface CodingChallengePageProps {
   onComplete: () => void;
@@ -23,6 +28,7 @@ export function CodingChallengePage({ onComplete }: CodingChallengePageProps) {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [solutions, setSolutions] = useState<Record<string, string>>({});
   const [timeLeft, setTimeLeft] = useState(2400); // 40 minutes total
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch coding challenges from backend
   useEffect(() => {
@@ -114,8 +120,50 @@ export function CodingChallengePage({ onComplete }: CodingChallengePageProps) {
     }
   };
 
-  const handleSubmit = () => {
-    onComplete();
+  const handleSubmit = async () => {
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
+    try {
+      // Submit all coding solutions to backend
+      const submissions = questions.map(async (question) => {
+        const code = solutions[question.id] || '';
+        const language = question.language || DEFAULT_LANGUAGE;
+        
+        if (code.trim().length === 0) {
+          // Skip empty solutions
+          return { success: true };
+        }
+        
+        return await interviewService.submitCodingChallenge(
+          question.id,
+          code,
+          language
+        );
+      });
+
+      // Wait for all submissions to complete
+      const results = await Promise.all(submissions);
+      
+      // Check if any submission failed
+      const failedSubmissions = results.filter(r => !r.success);
+      if (failedSubmissions.length > 0) {
+        toast.error('Failed to submit some solutions', {
+          description: 'Please try again',
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      toast.success('All solutions submitted successfully');
+      onComplete();
+    } catch (error) {
+      console.error('Error submitting coding solutions:', error);
+      toast.error('Failed to submit solutions', {
+        description: 'Please try again',
+      });
+      setIsSubmitting(false);
+    }
   };
 
   const getDifficultyColor = (difficulty: string) => {
@@ -401,10 +449,20 @@ function isPalindrome(str) {
           ) : (
             <Button
               onClick={handleSubmit}
-              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-8 shadow-lg"
+              disabled={isSubmitting}
+              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-8 shadow-lg disabled:opacity-50"
             >
-              Submit All Solutions
-              <CheckCircle2 className="w-4 h-4 ml-2" />
+              {isSubmitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  Submit All Solutions
+                  <CheckCircle2 className="w-4 h-4 ml-2" />
+                </>
+              )}
             </Button>
           )}
         </div>

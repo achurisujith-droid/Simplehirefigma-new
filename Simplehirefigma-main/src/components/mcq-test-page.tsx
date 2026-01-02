@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { CheckCircle, Clock, AlertCircle } from "lucide-react";
 import { Button } from "./ui/button";
+import { interviewService } from "../src/services/interview.service";
+import { toast } from "sonner";
 
 interface Question {
   id: string;
@@ -22,6 +24,7 @@ export function McqTestPage({ onComplete }: McqTestPageProps) {
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, number>>({});
   const [timeLeft, setTimeLeft] = useState(1200); // 20 minutes = 1200 seconds
   const [showWarning, setShowWarning] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Fetch MCQ questions from backend
   useEffect(() => {
@@ -117,10 +120,37 @@ export function McqTestPage({ onComplete }: McqTestPageProps) {
     }
   };
 
-  const handleSubmit = () => {
-    // Save answers before completion (optional - for future analytics)
-    console.log("MCQ Test completed. Answers:", selectedAnswers);
-    onComplete();
+  const handleSubmit = async () => {
+    if (isSubmitting) return;
+    
+    setIsSubmitting(true);
+    try {
+      // Convert selectedAnswers to the format expected by backend
+      // Backend expects: { answers: [{ questionId, selectedOptionIndex }] }
+      const answersArray = Object.entries(selectedAnswers).map(([questionId, selectedOptionIndex]) => ({
+        questionId,
+        selectedOptionIndex,
+      }));
+
+      const response = await interviewService.submitMCQTest(answersArray);
+      
+      if (!response.success) {
+        toast.error('Failed to submit answers', {
+          description: response.error || 'Please try again',
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
+      toast.success('MCQ test completed successfully');
+      onComplete();
+    } catch (error) {
+      console.error('Error submitting MCQ test:', error);
+      toast.error('Failed to submit answers', {
+        description: 'Please try again',
+      });
+      setIsSubmitting(false);
+    }
   };
 
   const goToQuestion = (index: number) => {
@@ -280,10 +310,17 @@ export function McqTestPage({ onComplete }: McqTestPageProps) {
               ) : (
                 <Button
                   onClick={handleSubmit}
-                  disabled={answeredCount < questions.length}
+                  disabled={answeredCount < questions.length || isSubmitting}
                   className="bg-green-600 hover:bg-green-700 text-white px-6 disabled:opacity-50"
                 >
-                  Submit Test
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                      Submitting...
+                    </>
+                  ) : (
+                    'Submit Test'
+                  )}
                 </Button>
               )}
             </div>

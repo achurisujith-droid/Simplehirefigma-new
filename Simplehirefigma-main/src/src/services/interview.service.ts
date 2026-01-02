@@ -84,7 +84,7 @@ export const interviewService = {
    * Submit MCQ test answers
    */
   async submitMCQTest(
-    answers: Record<string, number>
+    answers: Array<{ questionId: string; selectedOptionIndex: number }>
   ): Promise<ApiResponse<{ score: number; totalQuestions: number }>> {
     return apiClient.post('/interviews/mcq/submit', { answers });
   },

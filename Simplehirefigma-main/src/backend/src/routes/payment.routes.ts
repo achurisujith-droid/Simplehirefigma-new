@@ -60,10 +60,14 @@ router.post('/create-intent', async (req: AuthRequest, res: Response, next: Next
         products.push(productId);
       }
 
-      // Update user's purchased products
-      await prisma.userData.update({
+      // Update user's purchased products (upsert to handle new users)
+      await prisma.userData.upsert({
         where: { userId: req.user!.id },
-        data: { purchasedProducts: products },
+        create: {
+          userId: req.user!.id,
+          purchasedProducts: products,
+        },
+        update: { purchasedProducts: products },
       });
 
       // Create payment record with test mode status
@@ -136,9 +140,13 @@ router.post('/confirm', async (req: AuthRequest, res: Response, next: NextFuncti
       products.push(productId);
     }
 
-    await prisma.userData.update({
+    await prisma.userData.upsert({
       where: { userId: req.user!.id },
-      data: { purchasedProducts: products },
+      create: {
+        userId: req.user!.id,
+        purchasedProducts: products,
+      },
+      update: { purchasedProducts: products },
     });
 
     // Record payment

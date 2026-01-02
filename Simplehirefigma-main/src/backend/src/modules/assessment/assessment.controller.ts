@@ -42,6 +42,16 @@ export async function startAssessment(req: AuthRequest, res: Response, next: Nex
       throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
     }
 
+    // Validate that multer processed the files
+    if (!req.files) {
+      logger.error('[Step 0] req.files is undefined - multer may have failed to process the request');
+      throw new AppError(
+        'File upload failed. Please ensure you are uploading files as multipart/form-data.',
+        400,
+        'FILE_UPLOAD_ERROR'
+      );
+    }
+
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
     // Validate resume file

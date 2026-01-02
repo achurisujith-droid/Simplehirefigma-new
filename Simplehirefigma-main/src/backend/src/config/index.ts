@@ -140,6 +140,9 @@ export const config: Config = {
 
 /**
  * Get cookie options for session cookies
+ * Note: sameSite='none' in production is safe because we use JWT tokens
+ * which provide built-in CSRF protection through the Bearer token pattern.
+ * Cookies are only used for convenience, not as the primary auth mechanism.
  */
 export const getSessionCookieOptions = (clear = false) => {
   const sameSite: 'none' | 'lax' = config.nodeEnv === 'production' ? 'none' : 'lax';

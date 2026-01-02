@@ -125,7 +125,8 @@ export class SessionService {
       return result.count;
     } catch (error: any) {
       // Gracefully handle missing table (migrations not yet applied)
-      if (error.message?.includes('does not exist')) {
+      // P2021: The table does not exist in the current database
+      if (error.code === 'P2021' || error.message?.includes('does not exist')) {
         logger.warn('Sessions table does not exist, skipping cleanup. Please run migrations.');
         return 0;
       }

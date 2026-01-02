@@ -14,9 +14,9 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
       token = authHeader.substring(7);
     }
     
-    // Fallback to session cookie
-    if (!token && req.cookies?.[config.cookie.name]) {
-      token = req.cookies[config.cookie.name];
+    // Fallback to cookies (check multiple cookie names)
+    if (!token && req.cookies) {
+      token = req.cookies[config.cookie.name] || req.cookies.accessToken || req.cookies.token;
     }
 
     if (!token) {
@@ -53,9 +53,9 @@ export const optionalAuth = (req: AuthRequest, res: Response, next: NextFunction
       token = authHeader.substring(7);
     }
     
-    // Fallback to session cookie
-    if (!token && req.cookies?.[config.cookie.name]) {
-      token = req.cookies[config.cookie.name];
+    // Fallback to cookies (check multiple cookie names)
+    if (!token && req.cookies) {
+      token = req.cookies[config.cookie.name] || req.cookies.accessToken || req.cookies.token;
     }
 
     if (!token) {

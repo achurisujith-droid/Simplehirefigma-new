@@ -141,12 +141,15 @@ export const config: Config = {
 /**
  * Get cookie options for session cookies
  */
-export const getSessionCookieOptions = (clear = false) => ({
-  httpOnly: true,
-  secure: config.nodeEnv === 'production',
-  sameSite: 'lax' as const,
-  maxAge: clear ? 0 : config.cookie.maxAge,
-  path: '/',
-});
+export const getSessionCookieOptions = (clear = false) => {
+  const sameSite: 'none' | 'lax' = config.nodeEnv === 'production' ? 'none' : 'lax';
+  return {
+    httpOnly: true,
+    secure: config.nodeEnv === 'production',
+    sameSite,
+    maxAge: clear ? 0 : config.cookie.maxAge,
+    path: '/',
+  };
+};
 
 export default config;

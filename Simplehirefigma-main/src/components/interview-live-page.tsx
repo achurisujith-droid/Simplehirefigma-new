@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Camera, Mic, Volume2, Eye, CheckCircle2, AlertTriangle, Play, Pause, Clock } from "lucide-react";
 import { Button } from "./ui/button";
-import { Conversation } from "@11labs/client";
+import { Conversation } from "@elevenlabs/client";
 
 interface InterviewLivePageProps {
   onComplete: () => void;

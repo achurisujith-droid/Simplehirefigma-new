@@ -78,9 +78,11 @@ router.post('/create-intent', async (req: AuthRequest, res: Response, next: Next
       if (!productExists) {
         console.warn(`⚠️  Product ${productId} not found in database, skipping payment record creation`);
         // Still add to purchasedProducts but don't create payment record
+        // This is acceptable in placeholder mode - users still get feature access
         return res.status(200).json({ 
-          message: 'Products added (payment record skipped - product not in database)',
+          message: 'Products added successfully (placeholder mode - payment record not created)',
           success: true,
+          warning: 'Product not found in database, payment record skipped',
           data: {
             purchasedProduct: productId,
             addedProducts: products
@@ -175,8 +177,10 @@ router.post('/confirm', async (req: AuthRequest, res: Response, next: NextFuncti
     if (!productExists) {
       console.warn(`⚠️  Product ${productId} not found in database, skipping payment record creation`);
       // Still return success as products were added to user
+      // Log warning for monitoring but don't fail the payment confirmation
       return res.json({
         success: true,
+        warning: 'Product not found in database, payment record skipped',
         data: {
           success: true,
           purchasedProduct: productId,

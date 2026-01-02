@@ -75,7 +75,7 @@ beforeAll(async () => {
     await prisma.refreshToken.deleteMany();
     await prisma.userData.deleteMany();
     await prisma.user.deleteMany();
-    // Products can be deleted last as they're referenced by payments
+    // Delete products after payments since payments reference products via FK
     await prisma.product.deleteMany();
   } catch (error) {
     // Ignore errors in test setup

@@ -16,6 +16,8 @@ const hashPassword = async (password: string): Promise<string> => {
 };
 
 // Products to seed (must match PRODUCTS constant in types/index.ts)
+// Note: Product IDs and prices MUST match types/index.ts exactly
+// Names/descriptions may differ slightly as this is database content vs API display
 const products = [
   {
     id: 'skill',

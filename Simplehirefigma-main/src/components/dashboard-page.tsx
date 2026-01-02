@@ -330,26 +330,196 @@ export function DashboardPage({
           </Card>
         </div>
 
-        {/* Get Started CTA */}
+        {/* Pricing Grid - Shows all plans for first-time users */}
+        <div className="mb-8">
+          <div className="text-center mb-8">
+            <h2 className="text-slate-900 mb-2">Choose your verification plan</h2>
+            <p className="text-slate-600">
+              Select the verification services you need to build your professional profile
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Skill Verification Plan */}
+            <Card className="p-6 border-slate-200 hover:border-blue-300 transition-all hover:shadow-lg">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                <Award className="w-6 h-6 text-blue-600" />
+              </div>
+              <h3 className="text-slate-900 mb-2">Skill verification</h3>
+              <div className="mb-4">
+                <span className="text-3xl text-slate-900">$30</span>
+              </div>
+              <p className="text-sm text-slate-600 mb-4">
+                AI-powered interview validates your professional skills
+              </p>
+              <ul className="space-y-2 text-sm text-slate-700 mb-6">
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  15-min AI interview
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  MCQ test (20 questions)
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  Coding challenge
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  Instant certificate
+                </li>
+              </ul>
+              <Button 
+                onClick={() => onSelectPlan?.({ id: 'skill', name: 'Skill verification', price: '$30' })}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Get Started
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Card>
+
+            {/* ID + Visa Verification Plan */}
+            <Card className="p-6 border-slate-200 hover:border-purple-300 transition-all hover:shadow-lg">
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
+                <Shield className="w-6 h-6 text-purple-600" />
+              </div>
+              <h3 className="text-slate-900 mb-2">ID + Visa verification</h3>
+              <div className="mb-4">
+                <span className="text-3xl text-slate-900">$20</span>
+              </div>
+              <p className="text-sm text-slate-600 mb-4">
+                Validate government ID and work authorization
+              </p>
+              <ul className="space-y-2 text-sm text-slate-700 mb-6">
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  ID document verification
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  Visa/EAD check
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  Selfie verification
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  24-48hr review
+                </li>
+              </ul>
+              <Button 
+                onClick={() => onSelectPlan?.({ id: 'id-visa', name: 'ID + Visa verification', price: '$20' })}
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white"
+              >
+                Get Started
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Card>
+
+            {/* Reference Check Plan */}
+            <Card className="p-6 border-slate-200 hover:border-green-300 transition-all hover:shadow-lg">
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
+                <Users className="w-6 h-6 text-green-600" />
+              </div>
+              <h3 className="text-slate-900 mb-2">Reference check</h3>
+              <div className="mb-4">
+                <span className="text-3xl text-slate-900">$15</span>
+              </div>
+              <p className="text-sm text-slate-600 mb-4">
+                Professional references collection and verification
+              </p>
+              <ul className="space-y-2 text-sm text-slate-700 mb-6">
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  Up to 5 references
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  Automated email outreach
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  Response tracking
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  Verification summary
+                </li>
+              </ul>
+              <Button 
+                onClick={() => onSelectPlan?.({ id: 'reference', name: 'Reference check', price: '$15' })}
+                className="w-full bg-green-600 hover:bg-green-700 text-white"
+              >
+                Get Started
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Card>
+
+            {/* Complete Combo Plan - Featured */}
+            <Card className="p-6 border-2 border-blue-500 hover:border-blue-600 transition-all shadow-lg relative">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <Badge className="bg-blue-600 text-white px-3 py-1">
+                  <Sparkles className="w-3 h-3 mr-1" />
+                  Best Value
+                </Badge>
+              </div>
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
+                <Award className="w-6 h-6 text-blue-600" />
+              </div>
+              <h3 className="text-slate-900 mb-2">Complete combo</h3>
+              <div className="mb-4">
+                <span className="text-3xl text-slate-900">$60</span>
+              </div>
+              <p className="text-sm text-slate-600 mb-4">
+                All three verifications at a discounted price
+              </p>
+              <ul className="space-y-2 text-sm text-slate-700 mb-6">
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  All skill verification features
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  All ID verification features
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  All reference check features
+                </li>
+                <li className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  Save $5
+                </li>
+              </ul>
+              <Button 
+                onClick={() => onSelectPlan?.({ id: 'combo', name: 'Complete combo', price: '$60' })}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Get Started
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Card>
+          </div>
+        </div>
+
+        {/* Help CTA for questions */}
         <Card className="p-8 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex-1 text-center md:text-left">
-              <div className="inline-flex items-center gap-2 bg-blue-600 text-white px-3 py-1 rounded-full text-sm mb-4">
-                <Sparkles className="w-4 h-4" />
-                <span>Get started today</span>
-              </div>
-              <h2 className="text-slate-900 mb-2">Ready to get verified?</h2>
-              <p className="text-slate-700 mb-6">
-                Choose a verification plan and start building your professional credentials.
+              <h3 className="text-slate-900 mb-2">Have questions?</h3>
+              <p className="text-slate-700">
+                Contact our support team for help choosing the right verification plan for you.
               </p>
-              <Button 
-                onClick={() => onSelectPlan?.({ id: 'combo', name: 'Complete combo', price: '$60' })}
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                View pricing & plans
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
             </div>
+            <Button 
+              variant="outline"
+              className="border-blue-600 text-blue-600 hover:bg-blue-50"
+            >
+              Contact Support
+              <ExternalLink className="w-4 h-4 ml-2" />
+            </Button>
           </div>
         </Card>
 

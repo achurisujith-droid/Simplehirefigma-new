@@ -91,16 +91,7 @@ export function InterviewLivePage({ onComplete, sessionId }: InterviewLivePagePr
         const data: { success: boolean; data: VoiceStartResponse } = await response.json();
         
         if (data.success && data.data) {
-          // Map backend format to frontend format
-          // Backend returns: { id, question, category }
-          // Frontend expects: { id, text, topic }
-          const mappedQuestions = data.data.questions.map((q: any) => ({
-            id: q.id,
-            text: q.question || q.text,  // Backend uses 'question', fallback to 'text'
-            topic: q.category || q.topic || 'General'  // Backend uses 'category'
-          }));
-          
-          setQuestions(mappedQuestions);
+          setQuestions(data.data.questions);
           setVoiceSessionId(data.data.sessionId);
           setCandidateName(data.data.candidateName);
           setJobRole(data.data.jobRole);
@@ -646,7 +637,7 @@ export function InterviewLivePage({ onComplete, sessionId }: InterviewLivePagePr
                       Question {currentQuestionIndex + 1} of {questions.length}
                     </span>
                     <span className="text-xs text-slate-400">•</span>
-                    <span className="text-xs text-slate-600">{currentQuestion?.category}</span>
+                    <span className="text-xs text-slate-600">{currentQuestion?.topic}</span>
                   </div>
                   <p className={`text-base leading-relaxed ${
                     isAISpeaking ? 'text-green-900' : isUserSpeaking ? 'text-blue-900' : 'text-slate-700'
@@ -830,7 +821,7 @@ export function InterviewLivePage({ onComplete, sessionId }: InterviewLivePagePr
                     }`}></div>
                     <span className={`${
                       idx === currentQuestionIndex ? 'text-blue-900 font-medium' : 'text-slate-600'
-                    }`}>{q.category}</span>
+                    }`}>{q.topic}</span>
                   </div>
                 ))}
               </div>

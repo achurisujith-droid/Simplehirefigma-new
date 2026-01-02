@@ -393,28 +393,28 @@ router.post('/voice/start', async (req: AuthRequest, res: Response, next: NextFu
       voiceQuestions = [
         {
           id: 'voice_1',
-          question: `Tell me about your experience as a ${jobTitle}.`,
-          category: 'experience',
+          text: `Tell me about your experience as a ${jobTitle}.`,
+          topic: 'experience',
         },
         {
           id: 'voice_2',
-          question: 'What are your greatest technical strengths?',
-          category: 'technical',
+          text: 'What are your greatest technical strengths?',
+          topic: 'technical',
         },
         {
           id: 'voice_3',
-          question: 'Describe a challenging project you worked on and how you overcame obstacles.',
-          category: 'problem_solving',
+          text: 'Describe a challenging project you worked on and how you overcame obstacles.',
+          topic: 'problem_solving',
         },
         {
           id: 'voice_4',
-          question: 'How do you stay updated with the latest technologies in your field?',
-          category: 'learning',
+          text: 'How do you stay updated with the latest technologies in your field?',
+          topic: 'learning',
         },
         {
           id: 'voice_5',
-          question: 'Why are you interested in this position and what are your career goals?',
-          category: 'motivation',
+          text: 'Why are you interested in this position and what are your career goals?',
+          topic: 'motivation',
         },
       ];
 

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Camera, Mic, Volume2, Eye, CheckCircle2, AlertTriangle, Play, Pause, Clock } from "lucide-react";
 import { Button } from "./ui/button";
+import { Conversation } from "@elevenlabs/client";
 
 interface InterviewLivePageProps {
   onComplete: () => void;
@@ -20,9 +21,21 @@ interface ProctoringAlert {
   time: string;
 }
 
+interface VoiceStartResponse {
+  sessionId: string;
+  questions: Question[];
+  candidateName: string;
+  jobRole: string;
+  signedUrl?: string;
+  agentConfig?: {
+    agentId: string;
+    provider: string;
+  };
+}
+
 export function InterviewLivePage({ onComplete, sessionId }: InterviewLivePageProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const speechSynthRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const conversationRef = useRef<any>(null); // ElevenLabs Conversation instance
   const currentIndexRef = useRef<number>(0); // Track current index to avoid closure issues
   
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -38,8 +51,15 @@ export function InterviewLivePage({ onComplete, sessionId }: InterviewLivePagePr
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [proctoringAlerts, setProctoringAlerts] = useState<ProctoringAlert[]>([]);
   const [audioWaveform, setAudioWaveform] = useState<number[]>(Array(20).fill(30));
+  const [voiceSessionId, setVoiceSessionId] = useState<string>('');
+  const [candidateName, setCandidateName] = useState<string>('');
+  const [jobRole, setJobRole] = useState<string>('');
+  const [useElevenLabs, setUseElevenLabs] = useState<boolean>(false);
 
-  // Fetch voice questions from backend
+  // Default job role constant
+  const DEFAULT_JOB_ROLE = 'Software Engineer';
+
+  // Fetch voice questions and start voice session
   useEffect(() => {
     async function loadVoiceQuestions() {
       try {
@@ -52,27 +72,39 @@ export function InterviewLivePage({ onComplete, sessionId }: InterviewLivePagePr
           return;
         }
 
-        // Try to fetch from assessment plan if sessionId is provided
-        const endpoint = sessionId 
-          ? `/api/interviews/assessment-plan/${sessionId}`
-          : '/api/interviews/assessment-plan/latest';
-
-        const response = await fetch(endpoint, {
+        // Call voice/start endpoint to get session info
+        const response = await fetch('/api/interviews/voice/start', {
+          method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json'
-          }
+          },
+          body: JSON.stringify({
+            role: jobRole || DEFAULT_JOB_ROLE
+          })
         });
 
         if (!response.ok) {
-          throw new Error('Failed to load voice questions');
+          throw new Error('Failed to start voice session');
         }
 
-        const data = await response.json();
-        if (data.success && data.data.voiceQuestions && data.data.voiceQuestions.length > 0) {
-          setQuestions(data.data.voiceQuestions);
+        const data: { success: boolean; data: VoiceStartResponse } = await response.json();
+        
+        if (data.success && data.data) {
+          setQuestions(data.data.questions);
+          setVoiceSessionId(data.data.sessionId);
+          setCandidateName(data.data.candidateName);
+          setJobRole(data.data.jobRole);
+          
+          // Check if we should use ElevenLabs
+          if (data.data.signedUrl) {
+            setUseElevenLabs(true);
+            console.log('ElevenLabs signedUrl available, will use ElevenLabs integration');
+          } else {
+            console.log('No ElevenLabs signedUrl, using fallback speech synthesis');
+          }
         } else {
-          console.warn('No voice questions found, using fallback');
+          console.warn('No voice session data, using fallback');
           setDefaultQuestions();
         }
       } catch (error) {
@@ -83,7 +115,7 @@ export function InterviewLivePage({ onComplete, sessionId }: InterviewLivePagePr
       }
     }
     loadVoiceQuestions();
-  }, [sessionId]);
+  }, []);
 
   // Set default fallback questions
   const setDefaultQuestions = () => {
@@ -106,7 +138,7 @@ export function InterviewLivePage({ onComplete, sessionId }: InterviewLivePagePr
     ]);
   };
 
-  // Setup camera and MediaRecorder
+  // Setup camera, MediaRecorder, and ElevenLabs connection
   useEffect(() => {
     // Don't setup media until questions are loaded
     if (isLoading || questions.length === 0) {
@@ -128,6 +160,7 @@ export function InterviewLivePage({ onComplete, sessionId }: InterviewLivePagePr
           }
         });
         setHasPermission(true);
+        setStream(mediaStream);
         
         if (videoRef.current) {
           videoRef.current.srcObject = mediaStream;
@@ -149,6 +182,11 @@ export function InterviewLivePage({ onComplete, sessionId }: InterviewLivePagePr
         } catch (recorderErr) {
           console.log("MediaRecorder setup failed");
         }
+
+        // Setup ElevenLabs conversation if signedUrl is available
+        if (useElevenLabs && voiceSessionId && candidateName && jobRole) {
+          await setupElevenLabsConversation();
+        }
       } catch (err: any) {
         setHasPermission(false);
       }
@@ -168,12 +206,106 @@ export function InterviewLivePage({ onComplete, sessionId }: InterviewLivePagePr
       if (mediaRecorder && mediaRecorder.state === 'recording') {
         mediaRecorder.stop();
       }
-      // Stop any ongoing speech
+      // Stop ElevenLabs conversation
+      if (conversationRef.current) {
+        try {
+          conversationRef.current.endSession();
+        } catch (err) {
+          console.error('Error ending ElevenLabs session:', err);
+        }
+      }
+      // Stop any ongoing speech synthesis
       if (window.speechSynthesis) {
         window.speechSynthesis.cancel();
       }
     };
-  }, [isLoading, questions.length]);
+    // Dependencies: isLoading and questions.length determine when to setup media
+    // useElevenLabs, voiceSessionId, candidateName, jobRole determine if/how to setup ElevenLabs
+  }, [isLoading, questions.length, useElevenLabs, voiceSessionId, candidateName, jobRole]);
+
+  // Setup ElevenLabs conversation
+  async function setupElevenLabsConversation() {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.error('No auth token for ElevenLabs connection');
+        return;
+      }
+
+      // Get signed URL again (in case it changed)
+      const response = await fetch('/api/interviews/voice/start', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          role: jobRole
+        })
+      });
+
+      if (!response.ok) {
+        console.error('Failed to get signed URL for ElevenLabs');
+        return;
+      }
+
+      const data: { success: boolean; data: VoiceStartResponse } = await response.json();
+      
+      if (!data.data.signedUrl) {
+        console.error('No signed URL in response');
+        return;
+      }
+
+      // Start ElevenLabs conversation with dynamic variables
+      const conversation = await Conversation.startSession({
+        signedUrl: data.data.signedUrl,
+        dynamicVariables: {
+          sessionId: voiceSessionId,
+          candidateName: candidateName,
+          jobRole: jobRole
+        },
+        onConnect: () => {
+          console.log('Connected to ElevenLabs');
+          setIsAISpeaking(false);
+          setIsUserSpeaking(false);
+        },
+        onDisconnect: () => {
+          console.log('Disconnected from ElevenLabs');
+        },
+        onMessage: (message: any) => {
+          console.log('ElevenLabs message:', message);
+        },
+        onError: (error: any) => {
+          console.error('ElevenLabs error:', error);
+        },
+        onModeChange: (mode: any) => {
+          console.log('ElevenLabs mode changed:', mode);
+          // Update UI based on mode
+          if (mode.mode === 'speaking') {
+            setIsAISpeaking(true);
+            setIsUserSpeaking(false);
+          } else if (mode.mode === 'listening') {
+            setIsAISpeaking(false);
+            setIsUserSpeaking(true);
+          } else {
+            setIsAISpeaking(false);
+            setIsUserSpeaking(false);
+          }
+        }
+      });
+
+      conversationRef.current = conversation;
+      console.log('ElevenLabs conversation started with dynamic variables:', {
+        sessionId: voiceSessionId,
+        candidateName: candidateName,
+        jobRole: jobRole
+      });
+    } catch (error) {
+      console.error('Failed to setup ElevenLabs conversation:', error);
+      // Fall back to speech synthesis
+      setUseElevenLabs(false);
+    }
+  }
 
   // Animated waveform effect when AI speaks
   useEffect(() => {
@@ -187,8 +319,16 @@ export function InterviewLivePage({ onComplete, sessionId }: InterviewLivePagePr
     }
   }, [isAISpeaking]);
 
-  // Text-to-speech function
+  // Text-to-speech function (fallback for when ElevenLabs is not available)
   const speakQuestion = (questionText: string) => {
+    // If using ElevenLabs, the agent will handle speech automatically
+    if (useElevenLabs && conversationRef.current) {
+      console.log("Using ElevenLabs for speech, skipping fallback");
+      // ElevenLabs handles the conversation flow
+      return;
+    }
+
+    // Fallback to browser speech synthesis
     if (!window.speechSynthesis) {
       console.log("Speech synthesis not supported");
       // Fallback: just show visual indication for 5 seconds
@@ -245,7 +385,6 @@ export function InterviewLivePage({ onComplete, sessionId }: InterviewLivePagePr
       }, 500);
     };
 
-    speechSynthRef.current = utterance;
     window.speechSynthesis.speak(utterance);
   };
 

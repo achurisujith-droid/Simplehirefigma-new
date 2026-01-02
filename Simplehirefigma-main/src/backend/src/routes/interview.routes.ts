@@ -253,6 +253,9 @@ router.post('/voice/start', async (req: AuthRequest, res: Response, next: NextFu
       });
     }
 
+    // Determine job role from various sources
+    const jobRole = role || plan?.classification?.primaryRole || assessmentPlan.primarySkill || 'Software Engineer';
+
     // Create session
     const session = await sessionManager.createSession({
       userId: req.user!.id,
@@ -260,7 +263,7 @@ router.post('/voice/start', async (req: AuthRequest, res: Response, next: NextFu
       provider: 'elevenlabs',
       questions: voiceQuestions as VoiceQuestion[],
       resumeContext: assessmentPlan.resumeText || undefined,
-      jobRole: role,
+      jobRole: jobRole,
     });
 
     // Get ElevenLabs signed URL if configured
@@ -315,6 +318,8 @@ router.post('/voice/start', async (req: AuthRequest, res: Response, next: NextFu
       data: {
         sessionId: session.sessionId,
         questions: voiceQuestions,
+        candidateName: req.user!.name,
+        jobRole: jobRole,
         ...(signedUrl && { signedUrl }),
         ...(agentConfig && { agentConfig }),
       },

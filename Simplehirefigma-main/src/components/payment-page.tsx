@@ -103,18 +103,18 @@ export function PaymentPage({ selectedPlan, onPaymentSuccess, onBack }: PaymentP
       // Step 1: Create payment intent
       const intentResponse = await paymentService.createPaymentIntent(selectedPlan.id);
       
-      if (!intentResponse.success || !intentResponse.data) {
-        toast.error("Failed to initialize payment");
-        setIsProcessing(false);
-        return;
-      }
-      
       // Check if backend is in placeholder/test mode
-      // Backend returns a message field when running in placeholder mode
-      if (intentResponse.data.message) {
+      // Backend returns a message field directly when running in placeholder mode
+      if (intentResponse.message) {
         // In placeholder mode, treat as successful for testing
         toast.success("Payment successful! (Test mode)");
         onPaymentSuccess();
+        return;
+      }
+      
+      if (!intentResponse.success || !intentResponse.data) {
+        toast.error("Failed to initialize payment");
+        setIsProcessing(false);
         return;
       }
       

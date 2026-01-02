@@ -3,6 +3,9 @@ import { CreditCard, Lock, Check, ArrowLeft } from "lucide-react";
 import { paymentService } from "../src/services/payment.service";
 import { toast } from "sonner";
 
+// Mock payment method ID for testing/demo mode
+const MOCK_PAYMENT_METHOD_ID = "pm_card_visa";
+
 interface PaymentPageProps {
   selectedPlan: {
     id: string;
@@ -106,8 +109,10 @@ export function PaymentPage({ selectedPlan, onPaymentSuccess, onBack }: PaymentP
         return;
       }
       
-      // Check if backend is in placeholder mode
-      if (intentResponse.data.message && intentResponse.data.message.includes('Placeholder')) {
+      // Check if backend is in placeholder/test mode
+      // Backend returns a message field when running in placeholder mode
+      if (intentResponse.data.message) {
+        // In placeholder mode, treat as successful for testing
         toast.success("Payment successful! (Test mode)");
         onPaymentSuccess();
         return;
@@ -117,12 +122,11 @@ export function PaymentPage({ selectedPlan, onPaymentSuccess, onBack }: PaymentP
       
       // Step 2: For demo/test mode, simulate payment method creation
       // In production, this would use Stripe Elements
-      const mockPaymentMethodId = "pm_card_visa";
       
       // Step 3: Confirm payment with backend
       const confirmResponse = await paymentService.confirmPayment(
         paymentIntentId,
-        mockPaymentMethodId
+        MOCK_PAYMENT_METHOD_ID
       );
       
       if (confirmResponse.success && confirmResponse.data?.success) {

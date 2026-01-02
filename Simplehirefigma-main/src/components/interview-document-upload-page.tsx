@@ -77,7 +77,7 @@ export function InterviewDocumentUploadPage({ onComplete }: InterviewDocumentUpl
       toast.error('Session expired', {
         description: 'Please log in again to continue.',
       });
-      // Note: Consider redirecting to login or triggering re-auth here
+      // TODO: Implement redirect to login page or trigger re-authentication flow
       return;
     }
 

@@ -14,6 +14,9 @@ interface CodingQuestion {
   examples?: { input: string; output: string }[];
 }
 
+// Default language to use when not specified in question
+const DEFAULT_LANGUAGE = 'JavaScript';
+
 interface CodingChallengePageProps {
   onComplete: () => void;
 }
@@ -125,7 +128,7 @@ export function CodingChallengePage({ onComplete }: CodingChallengePageProps) {
       // Submit all coding solutions to backend
       const submissions = questions.map(async (question) => {
         const code = solutions[question.id] || '';
-        const language = question.language || 'JavaScript';
+        const language = question.language || DEFAULT_LANGUAGE;
         
         if (code.trim().length === 0) {
           // Skip empty solutions

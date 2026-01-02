@@ -141,13 +141,14 @@ router.post(
       
       if (existingPlan) {
         // Update existing plan with resume info
+        const currentPlan = (existingPlan.interviewPlan as InterviewPlanData) ?? {};
         assessmentPlan = await prisma.assessmentPlan.update({
           where: { id: existingPlan.id },
           data: {
             resumeUrl: resumeResult.url,
             resumeText: '', // Will be populated by resume parser later
             interviewPlan: {
-              ...(existingPlan.interviewPlan as any || {}),
+              ...currentPlan,
               resumeUrl: resumeResult.url,
               ...(idCardUrl && { idCardUrl }),
             },

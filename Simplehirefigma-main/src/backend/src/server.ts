@@ -140,6 +140,10 @@ app.get('/health', async (req, res) => {
 });
 
 // API Routes
+// Note: Both interviewRoutes and assessmentRoutes have /start-assessment endpoints
+// interviewRoutes is mounted first and handles basic file upload for /start-assessment
+// assessmentRoutes is mounted second with authenticate middleware and handles full resume analysis with AI
+// The interviewRoutes /start-assessment handler runs first due to route registration order
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', seedRouter);
 app.use('/api/users', userRoutes);

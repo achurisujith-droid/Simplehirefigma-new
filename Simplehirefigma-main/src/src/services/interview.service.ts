@@ -27,11 +27,9 @@ export const interviewService = {
       formData.append('idCard', idCard);
     }
 
-    return apiClient.post('/interviews/start-assessment', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    // Don't set Content-Type header - let browser set it with boundary
+    // Setting it manually will break multipart form data
+    return apiClient.post('/interviews/start-assessment', formData);
   },
 
   /**

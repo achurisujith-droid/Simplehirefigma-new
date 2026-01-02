@@ -71,6 +71,16 @@ export function InterviewDocumentUploadPage({ onComplete }: InterviewDocumentUpl
       return;
     }
 
+    // Check if user is authenticated before making API call
+    const token = localStorage.getItem('token');
+    if (!token) {
+      toast.error('Session expired', {
+        description: 'Please log in again to continue.',
+      });
+      // Note: Consider redirecting to login or triggering re-auth here
+      return;
+    }
+
     // Upload documents to backend
     setIsSubmitting(true);
     try {

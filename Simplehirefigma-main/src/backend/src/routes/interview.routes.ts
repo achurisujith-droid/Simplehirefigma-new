@@ -79,9 +79,20 @@ router.post(
   ]),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
+      // Validate that multer processed the files
+      if (!req.files) {
+        logger.error('[upload-documents] req.files is undefined - multer may have failed to process the request');
+        throw new AppError(
+          'File upload failed. Please ensure you are uploading files as multipart/form-data.',
+          400,
+          'FILE_UPLOAD_ERROR'
+        );
+      }
+
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
-      if (!files.resume) {
+      if (!files.resume || files.resume.length === 0) {
+        logger.error('[upload-documents] No resume file in request');
         throw new AppError('Resume is required', 400, 'VALIDATION_ERROR');
       }
 
@@ -115,9 +126,20 @@ router.post(
   ]),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
+      // Validate that multer processed the files
+      if (!req.files) {
+        logger.error('[start-assessment] req.files is undefined - multer may have failed to process the request');
+        throw new AppError(
+          'File upload failed. Please ensure you are uploading files as multipart/form-data.',
+          400,
+          'FILE_UPLOAD_ERROR'
+        );
+      }
+
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
 
-      if (!files.resume) {
+      if (!files.resume || files.resume.length === 0) {
+        logger.error('[start-assessment] No resume file in request');
         throw new AppError('Resume is required', 400, 'VALIDATION_ERROR');
       }
 

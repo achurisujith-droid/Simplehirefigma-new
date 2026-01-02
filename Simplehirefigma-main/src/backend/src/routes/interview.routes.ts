@@ -590,10 +590,11 @@ router.post('/notify-answer', async (req: Request, res: Response, next: NextFunc
       throw new AppError('Question not found', 404, 'NOT_FOUND');
     }
 
-    // Store the answer
+    // Store the answer - handle both old format (question) and new format (text)
+    const questionText = (question as any).question || (question as any).text || 'Question';
     await sessionManager.addAnswer(sessionId, {
       questionId,
-      question: question.question,
+      question: questionText,
       transcript,
       timestamp: new Date(),
     });
@@ -636,13 +637,17 @@ router.post('/next-question', async (req: Request, res: Response, next: NextFunc
       });
     }
 
+    // Handle both old format (question, category) and new format (text, topic)
+    const questionText = (nextQuestion as any).question || (nextQuestion as any).text || 'Question';
+    const questionCategory = (nextQuestion as any).category || (nextQuestion as any).topic || 'General';
+
     res.json({
       success: true,
       completed: false,
       data: {
         questionId: nextQuestion.id,
-        question: nextQuestion.question,
-        category: nextQuestion.category,
+        question: questionText,
+        category: questionCategory,
       },
     });
   } catch (error) {

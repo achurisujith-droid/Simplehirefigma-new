@@ -61,6 +61,28 @@ describe('LocalStorageProvider', () => {
   it('should not throw error when deleting non-existent file', async () => {
     await expect(provider.delete('non-existent-folder/non-existent-file.pdf')).resolves.not.toThrow();
   });
+
+  it('should handle files without extensions', async () => {
+    const mockFile = {
+      originalname: 'README',
+      buffer: Buffer.from('readme content'),
+      mimetype: 'text/plain',
+      fieldname: 'file',
+      encoding: '7bit',
+      size: 14,
+      stream: {} as any,
+      destination: '',
+      filename: '',
+      path: '',
+    } as Express.Multer.File;
+
+    const result = await provider.upload(mockFile, testFolder);
+
+    expect(result.url).toContain('/uploads/');
+    expect(result.key).toContain(testFolder);
+    // Should have .bin extension as default
+    expect(result.key).toMatch(/\.bin$/);
+  });
 });
 
 describe('StorageService', () => {

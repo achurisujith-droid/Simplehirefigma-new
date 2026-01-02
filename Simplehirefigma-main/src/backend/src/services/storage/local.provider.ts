@@ -4,6 +4,19 @@ import path from 'path';
 import fs from 'fs/promises';
 import config from '../../config';
 
+/**
+ * Safely extract file extension from filename
+ * Returns 'bin' as default if no extension is found
+ */
+function getFileExtension(filename: string): string {
+  const parts = filename.split('.');
+  if (parts.length === 1 || (parts[0] === '' && parts.length === 2)) {
+    // No extension or hidden file with no extension
+    return 'bin';
+  }
+  return parts.pop() || 'bin';
+}
+
 export class LocalStorageProvider implements StorageProvider {
   private uploadsDir: string;
   private baseUrl: string;
@@ -17,7 +30,7 @@ export class LocalStorageProvider implements StorageProvider {
     const folderPath = path.join(this.uploadsDir, folder);
     await fs.mkdir(folderPath, { recursive: true });
 
-    const fileExtension = file.originalname.split('.').pop();
+    const fileExtension = getFileExtension(file.originalname);
     const fileName = `${uuidv4()}.${fileExtension}`;
     const filePath = path.join(folderPath, fileName);
 

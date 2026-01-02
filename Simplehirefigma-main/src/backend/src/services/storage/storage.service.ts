@@ -19,15 +19,21 @@ class StorageService {
   private initializeProvider(): { provider: StorageProvider; type: StorageProviderType } {
     // Priority 1: Google Cloud Storage
     if (config.gcs?.bucket && config.gcs?.projectId) {
+      const authMethod = config.gcs.keyFile 
+        ? `keyFile: ${config.gcs.keyFile}` 
+        : 'using default application credentials';
+      logger.info(`Initializing GCS storage provider (${authMethod})`);
       return { provider: new GCSProvider(), type: 'gcs' };
     }
 
     // Priority 2: AWS S3 (for backward compatibility)
     if (config.aws?.s3Bucket && config.aws?.accessKeyId && config.aws?.secretAccessKey) {
+      logger.info('Initializing S3 storage provider (using AWS credentials)');
       return { provider: new S3Provider(), type: 's3' };
     }
 
     // Priority 3: Local filesystem (always available)
+    logger.info('Initializing local filesystem storage provider');
     return { provider: new LocalStorageProvider(), type: 'local' };
   }
 

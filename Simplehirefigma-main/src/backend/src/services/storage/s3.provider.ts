@@ -5,6 +5,19 @@ import { v4 as uuidv4 } from 'uuid';
 import config from '../../config';
 import { AppError } from '../../utils/errors';
 
+/**
+ * Safely extract file extension from filename
+ * Returns 'bin' as default if no extension is found
+ */
+function getFileExtension(filename: string): string {
+  const parts = filename.split('.');
+  if (parts.length === 1 || (parts[0] === '' && parts.length === 2)) {
+    // No extension or hidden file with no extension
+    return 'bin';
+  }
+  return parts.pop() || 'bin';
+}
+
 export class S3Provider implements StorageProvider {
   private s3Client: S3Client;
 
@@ -21,7 +34,7 @@ export class S3Provider implements StorageProvider {
 
   async upload(file: Express.Multer.File, folder: string): Promise<UploadResult> {
     try {
-      const fileExtension = file.originalname.split('.').pop();
+      const fileExtension = getFileExtension(file.originalname);
       const fileName = `${folder}/${uuidv4()}.${fileExtension}`;
 
       const upload = new Upload({

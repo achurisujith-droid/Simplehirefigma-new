@@ -22,6 +22,16 @@ import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
 
+// Helper function to normalize question format for backward compatibility
+// Handles both old format { question, category } and new format { text, topic }
+function normalizeQuestionText(question: any): string {
+  return question.question || question.text || 'Question';
+}
+
+function normalizeQuestionCategory(question: any): string {
+  return question.category || question.topic || 'General';
+}
+
 // Type for stored evaluation data
 interface StoredEvaluation {
   overallScore: number;
@@ -590,11 +600,10 @@ router.post('/notify-answer', async (req: Request, res: Response, next: NextFunc
       throw new AppError('Question not found', 404, 'NOT_FOUND');
     }
 
-    // Store the answer - handle both old format (question) and new format (text)
-    const questionText = (question as any).question || (question as any).text || 'Question';
+    // Store the answer - handle both old and new question formats
     await sessionManager.addAnswer(sessionId, {
       questionId,
-      question: questionText,
+      question: normalizeQuestionText(question),
       transcript,
       timestamp: new Date(),
     });
@@ -637,17 +646,14 @@ router.post('/next-question', async (req: Request, res: Response, next: NextFunc
       });
     }
 
-    // Handle both old format (question, category) and new format (text, topic)
-    const questionText = (nextQuestion as any).question || (nextQuestion as any).text || 'Question';
-    const questionCategory = (nextQuestion as any).category || (nextQuestion as any).topic || 'General';
-
+    // Handle both old and new question formats
     res.json({
       success: true,
       completed: false,
       data: {
         questionId: nextQuestion.id,
-        question: questionText,
-        category: questionCategory,
+        question: normalizeQuestionText(nextQuestion),
+        category: normalizeQuestionCategory(nextQuestion),
       },
     });
   } catch (error) {

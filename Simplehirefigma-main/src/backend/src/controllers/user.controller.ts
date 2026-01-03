@@ -3,6 +3,7 @@ import { AuthRequest } from '../types';
 import prisma from '../config/database';
 import { AppError } from '../utils/errors';
 import { comparePassword, hashPassword } from '../utils/password';
+import { createDefaultUserData } from '../utils/userData';
 
 export const getUserData = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -118,11 +119,8 @@ export const updateInterviewProgress = async (
         interviewProgress: progress,
       },
       create: {
-        userId: req.user!.id,
-        purchasedProducts: [],
+        ...createDefaultUserData(req.user!.id),
         interviewProgress: progress,
-        idVerificationStatus: 'not-started',
-        referenceCheckStatus: 'not-started',
       },
     });
 
@@ -151,16 +149,8 @@ export const updateIdVerificationStatus = async (
         idVerificationStatus: status,
       },
       create: {
-        userId: req.user!.id,
-        purchasedProducts: [],
-        interviewProgress: {
-          documentsUploaded: false,
-          voiceInterview: false,
-          mcqTest: false,
-          codingChallenge: false,
-        },
+        ...createDefaultUserData(req.user!.id),
         idVerificationStatus: status,
-        referenceCheckStatus: 'not-started',
       },
     });
 
@@ -189,15 +179,7 @@ export const updateReferenceCheckStatus = async (
         referenceCheckStatus: status,
       },
       create: {
-        userId: req.user!.id,
-        purchasedProducts: [],
-        interviewProgress: {
-          documentsUploaded: false,
-          voiceInterview: false,
-          mcqTest: false,
-          codingChallenge: false,
-        },
-        idVerificationStatus: 'not-started',
+        ...createDefaultUserData(req.user!.id),
         referenceCheckStatus: status,
       },
     });

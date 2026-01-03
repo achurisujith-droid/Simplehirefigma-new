@@ -7,6 +7,7 @@ import { AppError } from '../utils/errors';
 import { sha256Hash } from '../utils/crypto';
 import logger from '../config/logger';
 import config, { getSessionCookieOptions } from '../config';
+import { createDefaultUserData } from '../utils/userData';
 
 export const signup = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -134,18 +135,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     await prisma.userData.upsert({
       where: { userId: user.id },
       update: {}, // Don't update if exists
-      create: {
-        userId: user.id,
-        purchasedProducts: [],
-        interviewProgress: {
-          documentsUploaded: false,
-          voiceInterview: false,
-          mcqTest: false,
-          codingChallenge: false,
-        },
-        idVerificationStatus: 'not-started',
-        referenceCheckStatus: 'not-started',
-      },
+      create: createDefaultUserData(user.id),
     });
 
     // Generate tokens

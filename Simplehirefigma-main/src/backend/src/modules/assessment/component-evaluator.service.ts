@@ -211,8 +211,98 @@ function getDefaultCodeEvaluation(): CodeEvaluation {
   };
 }
 
+export interface VoiceEvaluation {
+  rawScore: number; // 0-100
+  quality: 'excellent' | 'good' | 'fair' | 'poor';
+  feedback: string;
+  strengths: string[];
+  improvements: string[];
+  isFollowUp?: boolean;
+}
+
+/**
+ * Evaluate voice interview answer using LLM
+ */
+export async function evaluateVoiceAnswer(
+  questionText: string,
+  answerTranscript: string
+): Promise<VoiceEvaluation> {
+  try {
+    logger.info('Evaluating voice answer');
+
+    const systemPrompt = `You are an expert interviewer evaluating a candidate's voice interview answer.
+
+Question: ${questionText}
+
+Answer: ${answerTranscript}
+
+Evaluate the answer on:
+1. Relevance: How well does the answer address the question?
+2. Depth: Does the answer demonstrate deep understanding?
+3. Clarity: Is the answer clear and well-articulated?
+4. Technical Accuracy: Are technical concepts correct?
+
+Provide a JSON response with:
+{
+  "score": <number 0-100>,
+  "quality": <"excellent" | "good" | "fair" | "poor">,
+  "feedback": "<brief constructive feedback>",
+  "strengths": ["<strength 1>", "<strength 2>"],
+  "improvements": ["<area for improvement 1>", "<area for improvement 2>"]
+}`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: 'Evaluate this answer.' },
+      ],
+      temperature: 0.3,
+      response_format: { type: 'json_object' },
+    });
+
+    const content = response.choices[0]?.message?.content;
+    if (!content) {
+      logger.warn('Empty response from OpenAI for voice evaluation');
+      return getDefaultVoiceEvaluation();
+    }
+
+    const evaluation = safeJsonParse(content);
+
+    if (!evaluation || typeof evaluation.score !== 'number') {
+      logger.warn('Failed to parse voice evaluation response');
+      return getDefaultVoiceEvaluation();
+    }
+
+    return {
+      rawScore: Math.max(0, Math.min(100, evaluation.score)),
+      quality: evaluation.quality || 'fair',
+      feedback: evaluation.feedback || 'Answer received and evaluated.',
+      strengths: Array.isArray(evaluation.strengths) ? evaluation.strengths : [],
+      improvements: Array.isArray(evaluation.improvements) ? evaluation.improvements : [],
+    };
+  } catch (error) {
+    logger.error('Error evaluating voice answer:', error);
+    return getDefaultVoiceEvaluation();
+  }
+}
+
+/**
+ * Get default voice evaluation in case of errors
+ */
+function getDefaultVoiceEvaluation(): VoiceEvaluation {
+  return {
+    rawScore: 50,
+    quality: 'fair',
+    feedback: 'Answer received and reviewed.',
+    strengths: ['Provided an answer'],
+    improvements: ['Provide more specific details', 'Elaborate on technical concepts'],
+  };
+}
+
 export const componentEvaluatorService = {
   evaluateMCQAnswer,
   evaluateCodeAnswer,
   calculateCodeScore,
+  evaluateVoiceAnswer,
 };

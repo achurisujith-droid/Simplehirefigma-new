@@ -37,6 +37,7 @@ router.post('/login', loginLimiter, validate(loginValidation), authController.lo
 router.post('/google', authController.googleLogin);
 router.post('/refresh', authController.refreshToken);
 router.post('/logout', authenticate, authController.logout);
+router.post('/logout-all', authenticate, authController.logoutAll);
 router.get('/me', authenticate, authController.getCurrentUser);
 
 export default router;

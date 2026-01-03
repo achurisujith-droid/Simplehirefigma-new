@@ -252,16 +252,44 @@ router.post(
         const plan = assessmentPlannerService.planAssessment(classification);
         logger.info(`[Step 4] Assessment plan created, components: ${plan.components.join(', ')}`);
 
-        // Step 5: Generate voice questions (if voice component enabled)
-        let voiceQuestions: any[] = [];
+        // Step 5: Generate only the first voice question (not all questions upfront)
+        let firstVoiceQuestion: any = null;
         if (plan.components.includes('VOICE') && plan.questionCounts.voice > 0) {
-          logger.info(`[Step 5] Generating ${plan.questionCounts.voice} voice questions`);
-          voiceQuestions = await questionGeneratorService.generateVoiceQuestions(
-            analysis,
-            classification,
-            plan.questionCounts.voice
-          );
-          logger.info(`[Step 5] Generated ${voiceQuestions.length} voice questions`);
+          logger.info('[Step 5] Generating first voice question only (ElevenLabs agent mode)');
+          
+          // Build context for first question
+          const resumeSummary = [
+            `${analysis.candidateProfile.name} - ${analysis.candidateProfile.currentRole} with ${analysis.candidateProfile.totalExperience} experience.`,
+            analysis.professionalSummary,
+          ].filter(Boolean).join('\n');
+          
+          const primarySkill = classification.keySkills?.[0] || analysis.candidateProfile.currentRole;
+          const level = classification.yearsExperience < 2 ? 'entry' : 
+                        classification.yearsExperience < 5 ? 'mid' : 
+                        classification.yearsExperience < 10 ? 'senior' : 'executive';
+          
+          const context = {
+            resumeSummary,
+            extractedEntities: analysis.extractedEntities,
+            primarySkill,
+            yearsOfExp: classification.yearsExperience,
+            level,
+            totalQuestionsAsked: 0,
+            maxQuestions: plan.questionCounts.voice,
+            previousQuestions: [],
+          };
+          
+          const generatedQuestion = await openaiService.generateNextQuestion(context);
+          firstVoiceQuestion = {
+            id: `q_${Date.now()}`,
+            text: generatedQuestion.text,
+            topic: generatedQuestion.topic,
+            isFollowUp: false,
+            level,
+            timestamp: Date.now(),
+          };
+          
+          logger.info(`[Step 5] Generated first question: ${generatedQuestion.topic}`);
         } else {
           logger.info('[Step 5] Skipping voice question generation (not required)');
         }
@@ -306,10 +334,13 @@ router.post(
               },
               interviewPlan: {
                 classification: classification as any,
-                voiceQuestions,
+                firstVoiceQuestion: firstVoiceQuestion,
+                voiceQuestionCount: plan.questionCounts.voice,
                 extractedEntities: analysis.extractedEntities,
                 analysis,
                 resumeUrl: resumeUpload.url,
+                voiceAnswers: [],
+                evaluationHistory: [],
                 ...(idCardUrl && { idCardUrl }),
               } as any,
               ...(idCardUrl && { idCardUrl }),
@@ -335,10 +366,13 @@ router.post(
               status: 'DRAFT',
               interviewPlan: {
                 classification: classification as any,
-                voiceQuestions,
+                firstVoiceQuestion: firstVoiceQuestion,
+                voiceQuestionCount: plan.questionCounts.voice,
                 extractedEntities: analysis.extractedEntities,
                 analysis,
                 resumeUrl: resumeUpload.url,
+                voiceAnswers: [],
+                evaluationHistory: [],
                 ...(idCardUrl && { idCardUrl }),
               } as any,
               ...(idCardUrl && { idCardUrl }),
@@ -378,7 +412,7 @@ router.post(
                 keySkills: classification.keySkills,
               },
             },
-            voiceQuestions,
+            firstVoiceQuestion: firstVoiceQuestion,
             resumeUrl: resumeUpload.url,
             ...(idCardUrl && { idCardUrl }),
           },
@@ -434,30 +468,30 @@ router.post('/voice/start', async (req: AuthRequest, res: Response, next: NextFu
 
     const plan = assessmentPlan.interviewPlan as any;
 
-    // Use voice questions from assessment plan if they exist
-    let voiceQuestions = plan?.voiceQuestions || [];
+    // Get first voice question from assessment plan
+    const firstVoiceQuestion = plan?.firstVoiceQuestion;
     
-    if (voiceQuestions.length === 0) {
-      // No personalized questions found - throw error
-      logger.error('[voice/start] No personalized questions found in assessment plan');
+    if (!firstVoiceQuestion) {
+      // No first question found - throw error
+      logger.error('[voice/start] No first voice question found in assessment plan');
       throw new AppError(
-        'Unable to generate interview questions. Please ensure your resume is uploaded.',
+        'Unable to start interview. Please ensure your resume is uploaded.',
         400,
         'NO_QUESTIONS_AVAILABLE'
       );
     }
     
-    logger.info(`[voice/start] Using ${voiceQuestions.length} personalized questions from assessment plan`);
+    logger.info('[voice/start] Retrieved first voice question from assessment plan');
 
     // Determine job role from various sources
     const jobRole = role || plan?.classification?.primaryRole || assessmentPlan.primarySkill || 'Software Engineer';
 
-    // Create session
+    // Create session with only first question (more will be generated via /next-question)
     const session = await sessionManager.createSession({
       userId: req.user!.id,
       assessmentPlanId: assessmentPlan.id,
       provider: 'elevenlabs',
-      questions: voiceQuestions as VoiceQuestion[],
+      questions: [firstVoiceQuestion] as VoiceQuestion[],
       resumeContext: assessmentPlan.resumeText || undefined,
       jobRole: jobRole,
     });
@@ -513,7 +547,8 @@ router.post('/voice/start', async (req: AuthRequest, res: Response, next: NextFu
       success: true,
       data: {
         sessionId: session.sessionId,
-        questions: voiceQuestions,
+        firstQuestion: firstVoiceQuestion,
+        totalQuestions: plan?.voiceQuestionCount || 10,
         candidateName: req.user!.name,
         jobRole: jobRole,
         ...(signedUrl && { signedUrl }),
@@ -628,11 +663,15 @@ router.post('/notify-answer', async (req: Request, res: Response, next: NextFunc
 });
 
 // Webhook: Get next question (called by ElevenLabs agent)
+// This implements ElevenLabs agent architecture:
+// - Generates questions one-by-one based on prior answers
+// - Evaluates previous answer before generating next question
+// - Enforces follow-up and topic-switch logic
 // Note: In production, add webhook signature verification
 router.post('/next-question', async (req: Request, res: Response, next: NextFunction) => {
   try {
     // TODO: Add webhook signature verification for production
-    const { sessionId } = req.body;
+    const { sessionId, previousAnswer } = req.body;
 
     if (!sessionId) {
       throw new AppError('sessionId is required', 400, 'VALIDATION_ERROR');
@@ -643,10 +682,26 @@ router.post('/next-question', async (req: Request, res: Response, next: NextFunc
       throw new AppError('Session not found', 404, 'NOT_FOUND');
     }
 
-    const nextQuestion = await sessionManager.getNextQuestion(sessionId);
+    // Get assessment plan to access full context
+    const assessmentPlan = await prisma.assessmentPlan.findUnique({
+      where: { id: session.assessmentPlanId },
+    });
 
-    if (!nextQuestion) {
-      // No more questions - interview complete
+    if (!assessmentPlan) {
+      throw new AppError('Assessment plan not found', 404, 'NOT_FOUND');
+    }
+
+    const plan = assessmentPlan.interviewPlan as any;
+    const maxQuestions = plan?.voiceQuestionCount || 10;
+    const totalAnswered = session.answers.length;
+
+    // Check if we've reached max questions
+    if (totalAnswered >= maxQuestions) {
+      logger.info('Interview completed - max questions reached', {
+        sessionId,
+        totalAnswered,
+        maxQuestions,
+      });
       return res.json({
         success: true,
         completed: true,
@@ -654,14 +709,138 @@ router.post('/next-question', async (req: Request, res: Response, next: NextFunc
       });
     }
 
-    // Handle both old and new question formats
+    // Evaluate previous answer if provided
+    let evaluation = null;
+    if (previousAnswer && previousAnswer.transcript) {
+      try {
+        const currentQuestion = session.questions[session.currentQuestionIndex];
+        evaluation = await componentEvaluatorService.evaluateVoiceAnswer(
+          currentQuestion.question || currentQuestion.text || '',
+          previousAnswer.transcript
+        );
+        
+        logger.info('Evaluated previous answer', {
+          sessionId,
+          score: evaluation.rawScore,
+          quality: evaluation.quality,
+        });
+
+        // Store evaluation in assessment plan
+        const evaluationHistory = plan.evaluationHistory || [];
+        evaluationHistory.push({
+          questionId: currentQuestion.id,
+          question: currentQuestion.question || currentQuestion.text,
+          topic: currentQuestion.topic || currentQuestion.category || '',
+          answer: previousAnswer.transcript,
+          evaluation,
+          timestamp: new Date(),
+        });
+
+        await prisma.assessmentPlan.update({
+          where: { id: assessmentPlan.id },
+          data: {
+            interviewPlan: {
+              ...plan,
+              evaluationHistory,
+            },
+          },
+        });
+      } catch (evalError) {
+        logger.error('Error evaluating previous answer', evalError);
+        // Continue even if evaluation fails
+      }
+    }
+
+    // Determine if we should do follow-up or new topic
+    const evaluationHistory = plan.evaluationHistory || [];
+    const recentAnswers = evaluationHistory.slice(-3); // Last 3 answers
+    const currentQuestion = session.questions[session.currentQuestionIndex];
+    const currentTopic = currentQuestion?.topic || currentQuestion?.category || '';
+    
+    // Count follow-ups for current topic (exact topic match)
+    const followUpsForCurrentTopic = recentAnswers.filter(
+      (e: any) => {
+        const questionTopic = e.question?.topic || e.topic || '';
+        return e.evaluation?.isFollowUp && questionTopic === currentTopic;
+      }
+    ).length;
+
+    // Decide: follow-up or new topic (max 2 follow-ups per topic)
+    const shouldFollowUp = followUpsForCurrentTopic < 2 && 
+                          evaluation && 
+                          evaluation.rawScore < 75; // Follow up if score < 75%
+
+    // Build context for next question generation
+    const resumeSummary = [
+      `${plan.analysis?.candidateProfile?.name || 'Candidate'} - ${plan.analysis?.candidateProfile?.currentRole || 'Position'} with ${plan.analysis?.candidateProfile?.totalExperience || 'N/A'} experience.`,
+      plan.analysis?.professionalSummary,
+    ].filter(Boolean).join('\n');
+
+    const classification = plan.classification;
+    const primarySkill = classification?.keySkills?.[0] || assessmentPlan.primarySkill;
+    const level = classification?.yearsExperience < 2 ? 'entry' : 
+                  classification?.yearsExperience < 5 ? 'mid' : 
+                  classification?.yearsExperience < 10 ? 'senior' : 'executive';
+
+    const previousQuestions = evaluationHistory.map((e: any) => ({
+      question: e.question,
+      answer: e.answer,
+    }));
+
+    const context = {
+      resumeSummary,
+      extractedEntities: plan.extractedEntities || {},
+      primarySkill,
+      yearsOfExp: classification?.yearsExperience || 0,
+      level,
+      totalQuestionsAsked: totalAnswered,
+      maxQuestions,
+      previousQuestions,
+      shouldFollowUp,
+      currentTopic: shouldFollowUp ? currentTopic : undefined,
+    };
+
+    // Generate next question
+    const generatedQuestion = await openaiService.generateNextQuestion(context);
+
+    const nextQuestion = {
+      id: `q_${Date.now()}`,
+      question: generatedQuestion.text,
+      text: generatedQuestion.text,
+      topic: generatedQuestion.topic,
+      category: generatedQuestion.topic,
+      isFollowUp: shouldFollowUp,
+      level,
+      timestamp: Date.now(),
+    };
+
+    // Add question to session
+    session.questions.push(nextQuestion as VoiceQuestion);
+    await sessionManager.getNextQuestion(sessionId); // Advance the index
+
+    logger.info('Generated next question', {
+      sessionId,
+      questionNumber: totalAnswered + 1,
+      topic: nextQuestion.topic,
+      isFollowUp: shouldFollowUp,
+    });
+
+    // Return the question with evaluation feedback
     res.json({
       success: true,
       completed: false,
       data: {
         questionId: nextQuestion.id,
-        question: normalizeQuestionText(nextQuestion),
-        category: normalizeQuestionCategory(nextQuestion),
+        question: nextQuestion.text,
+        category: nextQuestion.topic,
+        isFollowUp: shouldFollowUp,
+        ...(evaluation && {
+          previousEvaluation: {
+            score: evaluation.rawScore,
+            quality: evaluation.quality,
+            feedback: evaluation.feedback,
+          },
+        }),
       },
     });
   } catch (error) {

@@ -24,7 +24,8 @@ interface ProctoringAlert {
 
 interface VoiceStartResponse {
   sessionId: string;
-  questions: Question[];
+  firstQuestion: Question;
+  totalQuestions: number;
   candidateName: string;
   jobRole: string;
   signedUrl?: string;
@@ -73,21 +74,23 @@ export function InterviewLivePage({ onComplete, sessionId }: InterviewLivePagePr
           role: jobRole || DEFAULT_JOB_ROLE
         });
 
-        if (!response.success || !response.data?.questions?.length) {
+        if (!response.success || !response.data?.firstQuestion) {
           throw new Error('Failed to load interview questions. Please try again.');
         }
 
-        setQuestions(response.data.questions);
+        // Set initial question (more will be loaded dynamically)
+        setQuestions([response.data.firstQuestion]);
         setVoiceSessionId(response.data.sessionId);
         setCandidateName(response.data.candidateName);
         setJobRole(response.data.jobRole);
         
-        // Check if we should use ElevenLabs
+        // Check if we should use ElevenLabs - REQUIRED for agent-based interview
         if (response.data.signedUrl) {
           setUseElevenLabs(true);
           console.log('ElevenLabs signedUrl available, will use ElevenLabs integration');
         } else {
-          console.log('No ElevenLabs signedUrl, using fallback speech synthesis');
+          // No ElevenLabs = cannot proceed with agent-based interview
+          throw new Error('Voice interview agent is not available. Please ensure your internet connection is stable and try refreshing the page. If the problem persists, contact support.');
         }
       } catch (error) {
         console.error('Failed to load voice questions:', error);
@@ -175,10 +178,6 @@ export function InterviewLivePage({ onComplete, sessionId }: InterviewLivePagePr
           console.error('Error ending ElevenLabs session:', err);
         }
       }
-      // Stop any ongoing speech synthesis
-      if (window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-      }
     };
     // Dependencies: isLoading and questions.length determine when to setup media
     // useElevenLabs, voiceSessionId, candidateName, jobRole determine if/how to setup ElevenLabs
@@ -243,8 +242,9 @@ export function InterviewLivePage({ onComplete, sessionId }: InterviewLivePagePr
       });
     } catch (error) {
       console.error('Failed to setup ElevenLabs conversation:', error);
-      // Fall back to speech synthesis
-      setUseElevenLabs(false);
+      // No fallback - show error to user
+      setError('Failed to connect to voice interview agent. Please check your connection and try again.');
+      setIsLoading(false);
     }
   }
 
@@ -260,117 +260,14 @@ export function InterviewLivePage({ onComplete, sessionId }: InterviewLivePagePr
     }
   }, [isAISpeaking]);
 
-  // Text-to-speech function (fallback for when ElevenLabs is not available)
-  const speakQuestion = (questionText: string) => {
-    // If using ElevenLabs, the agent will handle speech automatically
-    if (useElevenLabs && conversationRef.current) {
-      console.log("Using ElevenLabs for speech, skipping fallback");
-      // ElevenLabs handles the conversation flow
-      return;
-    }
-
-    // Fallback to browser speech synthesis
-    if (!window.speechSynthesis) {
-      console.log("Speech synthesis not supported");
-      // Fallback: just show visual indication for 5 seconds
-      setTimeout(() => {
-        setIsAISpeaking(false);
-        startUserAnswer();
-      }, 5000);
-      return;
-    }
-
-    // Cancel any ongoing speech
-    window.speechSynthesis.cancel();
-
-    const utterance = new SpeechSynthesisUtterance(questionText);
-    
-    // Configure voice settings
-    utterance.rate = 0.9; // Slightly slower for clarity
-    utterance.pitch = 1.0; // Normal pitch
-    utterance.volume = isMuted ? 0 : 1.0; // Respect mute setting
-    
-    // Try to use a good quality voice
-    const voices = window.speechSynthesis.getVoices();
-    // Prefer female voices for professional feel
-    const preferredVoice = voices.find(voice => 
-      (voice.name.includes('Google') || voice.name.includes('Microsoft')) && 
-      (voice.name.includes('Female') || voice.name.includes('Samantha') || voice.name.includes('Karen'))
-    ) || voices.find(voice => voice.lang.startsWith('en')) || voices[0];
-    
-    if (preferredVoice) {
-      utterance.voice = preferredVoice;
-    }
-
-    // Event handlers
-    utterance.onstart = () => {
-      setIsAISpeaking(true);
-      console.log("AI started speaking");
-    };
-
-    utterance.onend = () => {
-      setIsAISpeaking(false);
-      console.log("AI finished speaking");
-      // Start recording user's answer
-      setTimeout(() => {
-        startUserAnswer();
-      }, 500);
-    };
-
-    utterance.onerror = (event) => {
-      console.log("Speech error:", event);
-      setIsAISpeaking(false);
-      // Still proceed to user answer even if speech fails
-      setTimeout(() => {
-        startUserAnswer();
-      }, 500);
-    };
-
-    window.speechSynthesis.speak(utterance);
-  };
-
-  // Start interview flow
+  // Start interview flow - only with ElevenLabs agent
   const startInterview = () => {
-    askQuestion(0);
-  };
-
-  // Ask a specific question
-  const askQuestion = (index: number) => {
-    if (index >= questions.length) {
-      // Interview complete
-      setTimeout(() => {
-        onComplete();
-      }, 2000);
+    if (!useElevenLabs || !conversationRef.current) {
+      setError('Voice interview agent not available. Please refresh the page and try again.');
       return;
     }
-
-    const question = questions[index];
-    currentIndexRef.current = index; // Update ref
-    setCurrentQuestion(question);
-    setCurrentQuestionIndex(index);
-    setIsUserSpeaking(false);
-    
-    // Speak the question
-    setTimeout(() => {
-      speakQuestion(question.text);
-    }, 1000);
-  };
-
-  // Start user answer phase
-  const startUserAnswer = () => {
-    setIsUserSpeaking(true);
-    
-    // Listen for 5 seconds, then move to next question
-    setTimeout(() => {
-      setIsUserSpeaking(false);
-      
-      // Brief pause of 2 seconds, then next question
-      setTimeout(() => {
-        const nextIndex = currentIndexRef.current + 1; // Use ref instead of state
-        console.log(`Moving from question ${currentIndexRef.current} to ${nextIndex}`);
-        askQuestion(nextIndex);
-      }, 2000);
-    }, 5000); // 5 seconds listening time
+    // ElevenLabs agent handles the interview flow automatically
+    console.log('Interview started with ElevenLabs agent');
   };
 
   // Simulate proctoring alerts
@@ -396,42 +293,21 @@ export function InterviewLivePage({ onComplete, sessionId }: InterviewLivePagePr
 
   const handlePauseResume = () => {
     setIsPaused(!isPaused);
-    if (!isPaused) {
-      // Pausing
-      if (window.speechSynthesis && isAISpeaking) {
-        window.speechSynthesis.pause();
-      }
-    } else {
-      // Resuming
-      if (window.speechSynthesis && isAISpeaking) {
-        window.speechSynthesis.resume();
-      }
+    // ElevenLabs conversation pause/resume would be handled by the agent
+    if (conversationRef.current) {
+      console.log(isPaused ? 'Resuming conversation' : 'Pausing conversation');
+      // Note: Actual pause/resume API depends on ElevenLabs SDK capabilities
     }
   };
 
   const toggleMute = () => {
     setIsMuted(!isMuted);
-    if (!isMuted && window.speechSynthesis && isAISpeaking) {
-      // Muting - lower volume
-      window.speechSynthesis.cancel();
+    // ElevenLabs conversation mute would be handled by the agent
+    if (conversationRef.current) {
+      console.log(isMuted ? 'Unmuting conversation' : 'Muting conversation');
+      // Note: Actual mute API depends on ElevenLabs SDK capabilities
     }
   };
-
-  // Load voices when they become available
-  useEffect(() => {
-    if (window.speechSynthesis) {
-      // Chrome loads voices asynchronously
-      const loadVoices = () => {
-        window.speechSynthesis.getVoices();
-      };
-      
-      loadVoices();
-      
-      if (speechSynthesis.onvoiceschanged !== undefined) {
-        speechSynthesis.onvoiceschanged = loadVoices;
-      }
-    }
-  }, []);
 
   // Show loading state while questions are being fetched
   if (isLoading) {

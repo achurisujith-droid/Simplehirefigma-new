@@ -14,6 +14,7 @@ import { authenticate } from './middleware/auth';
 import { auditLogger } from './middleware/audit-logger';
 import { validateEnvironmentOrExit } from './utils/validateEnv';
 import { sessionManager } from './services/session-manager';
+import { cleanupService } from './services/cleanup.service';
 
 // Import routes
 import authRoutes from './routes/auth.routes';
@@ -226,6 +227,10 @@ async function startServer() {
     logger.info('🧹 Setting up session cleanup scheduler...');
     setupSessionCleanup();
     logger.info('✅ Session cleanup scheduler configured');
+    
+    logger.info('🗑️  Starting periodic token and session cleanup...');
+    cleanupService.startPeriodicCleanup();
+    logger.info('✅ Periodic cleanup service started');
     
     logger.info('✨ Server startup complete!');
   } catch (error) {

@@ -71,8 +71,23 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
       throw error;
     }
 
+    // Create DB-backed session for persistent login
+    const sessionId = `sess_${user.id}_${Date.now()}`;
+    await prisma.session.create({
+      data: {
+        sessionId,
+        userId: user.id,
+        status: 'active',
+        data: {
+          userAgent: req.headers['user-agent'] || 'unknown',
+          ip: req.ip || 'unknown',
+        },
+        lastActivity: new Date(),
+      },
+    });
+
     // Log signup event
-    logger.info(`User signed up: ${user.email}`, { userId: user.id });
+    logger.info(`User signed up: ${user.email}`, { userId: user.id, sessionId });
 
     // Set HTTP-only session cookie
     const cookieOptions = getSessionCookieOptions();
@@ -162,8 +177,23 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
       throw error;
     }
 
+    // Create DB-backed session for persistent login
+    const sessionId = `sess_${user.id}_${Date.now()}`;
+    await prisma.session.create({
+      data: {
+        sessionId,
+        userId: user.id,
+        status: 'active',
+        data: {
+          userAgent: req.headers['user-agent'] || 'unknown',
+          ip: req.ip || 'unknown',
+        },
+        lastActivity: new Date(),
+      },
+    });
+
     // Log login event
-    logger.info(`User logged in: ${user.email}`, { userId: user.id });
+    logger.info(`User logged in: ${user.email}`, { userId: user.id, sessionId });
 
     // Set HTTP-only session cookie
     const cookieOptions = getSessionCookieOptions();
@@ -264,10 +294,39 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
 
 export const logout = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
-    // Delete all refresh tokens for user (logout from all devices)
-    // Or you can pass specific refresh token to delete only that session
-    await prisma.refreshToken.deleteMany({
-      where: { userId: req.user!.id },
+    const { refreshToken } = req.body;
+
+    // If specific refresh token provided, logout from that session only
+    if (refreshToken) {
+      const hashedRefreshToken = sha256Hash(refreshToken);
+      await prisma.refreshToken.deleteMany({
+        where: { 
+          userId: req.user!.id,
+          token: hashedRefreshToken,
+        },
+      });
+      
+      logger.info(`User logged out from single session: ${req.user!.id}`);
+    } else {
+      // Delete all refresh tokens for user (logout from all devices)
+      await prisma.refreshToken.deleteMany({
+        where: { userId: req.user!.id },
+      });
+      
+      logger.info(`User logged out from all sessions: ${req.user!.id}`);
+    }
+
+    // Expire all active sessions for this user
+    await prisma.session.updateMany({
+      where: { 
+        userId: req.user!.id,
+        status: 'active',
+      },
+      data: {
+        status: 'expired',
+        expiryReason: refreshToken ? 'logout' : 'logout_all',
+        expiredAt: new Date(),
+      },
     });
 
     // Clear the session cookie
@@ -276,6 +335,40 @@ export const logout = async (req: AuthRequest, res: Response, next: NextFunction
     res.json({
       success: true,
       message: 'Logged out successfully',
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const logoutAll = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  try {
+    // Delete all refresh tokens for user (force logout from all devices)
+    await prisma.refreshToken.deleteMany({
+      where: { userId: req.user!.id },
+    });
+
+    // Expire all active sessions for this user
+    await prisma.session.updateMany({
+      where: { 
+        userId: req.user!.id,
+        status: 'active',
+      },
+      data: {
+        status: 'expired',
+        expiryReason: 'logout_all_forced',
+        expiredAt: new Date(),
+      },
+    });
+
+    // Clear the session cookie
+    res.cookie(config.cookie.name, '', getSessionCookieOptions(true));
+
+    logger.info(`User logged out from all sessions (forced): ${req.user!.id}`);
+
+    res.json({
+      success: true,
+      message: 'Logged out from all devices successfully',
     });
   } catch (error) {
     next(error);

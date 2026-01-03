@@ -248,7 +248,6 @@ router.post(
           assessmentPlan = await prisma.assessmentPlan.update({
             where: { id: existingPlan.id },
             data: {
-              resumeUrl: resumeUpload.url,
               resumeText,
               primarySkill: classification.keySkills[0] || analysis.candidateProfile.currentRole,
               components: plan.components,
@@ -277,7 +276,6 @@ router.post(
           assessmentPlan = await prisma.assessmentPlan.create({
             data: {
               userId: req.user.id,
-              resumeUrl: resumeUpload.url,
               resumeText,
               primarySkill: classification.keySkills[0] || analysis.candidateProfile.currentRole,
               components: plan.components,

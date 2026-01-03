@@ -85,6 +85,33 @@ const upload = multer({
   limits: { fileSize: config.fileUpload.maxFileSize },
 });
 
+// Multer error handler middleware
+const handleMulterError = (err: any, req: Request, res: Response, next: NextFunction) => {
+  if (err instanceof multer.MulterError) {
+    logger.error('[multer-error] Multer processing error', {
+      code: err.code,
+      field: err.field,
+      message: err.message,
+    });
+    
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        error: 'File too large. Maximum file size is 10MB.',
+        code: 'FILE_TOO_LARGE',
+      });
+    }
+    
+    return res.status(400).json({
+      success: false,
+      error: 'File upload error: ' + err.message,
+      code: 'FILE_UPLOAD_ERROR',
+    });
+  }
+  
+  next(err);
+};
+
 // All routes require authentication
 router.use(authenticate);
 
@@ -95,11 +122,20 @@ router.post(
     { name: 'resume', maxCount: 1 },
     { name: 'coverLetter', maxCount: 1 },
   ]),
+  handleMulterError,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       // Validate that multer processed the files
       if (!req.files) {
-        logger.error('[upload-documents] req.files is undefined - multer may have failed to process the request');
+        logger.error('[upload-documents] req.files is undefined - multer may have failed to process the request', {
+          contentType: req.headers['content-type'],
+          hasBody: !!req.body,
+          bodyKeys: Object.keys(req.body || {}),
+          headers: {
+            'content-type': req.headers['content-type'],
+            'content-length': req.headers['content-length'],
+          },
+        });
         throw new AppError(
           'File upload failed. Please ensure you are uploading files as multipart/form-data.',
           400,
@@ -142,6 +178,7 @@ router.post(
     { name: 'resume', maxCount: 1 },
     { name: 'idCard', maxCount: 1 },
   ]),
+  handleMulterError,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     let tempResumeDir: string | null = null;
 
@@ -155,7 +192,15 @@ router.post(
 
       // Validate that multer processed the files
       if (!req.files) {
-        logger.error('[start-assessment] req.files is undefined - multer may have failed to process the request');
+        logger.error('[start-assessment] req.files is undefined - multer may have failed to process the request', {
+          contentType: req.headers['content-type'],
+          hasBody: !!req.body,
+          bodyKeys: Object.keys(req.body || {}),
+          headers: {
+            'content-type': req.headers['content-type'],
+            'content-length': req.headers['content-length'],
+          },
+        });
         throw new AppError(
           'File upload failed. Please ensure you are uploading files as multipart/form-data.',
           400,
@@ -484,6 +529,7 @@ router.post('/voice/start', async (req: AuthRequest, res: Response, next: NextFu
 router.post(
   '/voice/submit',
   upload.single('audio'),
+  handleMulterError,
   async (req: AuthRequest, res: Response, next: NextFunction) => {
     try {
       const { sessionId, transcript } = req.body;

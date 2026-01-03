@@ -59,11 +59,22 @@ export default function App() {
     price: string;
   } | null>(null);
   const [currentPage, setCurrentPage] = useState<"Dashboard" | "My products" | "Certificates" | "Help" | "InterviewDocUpload" | "InterviewPrep" | "InterviewLive" | "InterviewStepComplete" | "McqTest" | "CodingChallenge" | "InterviewEval" | "InterviewCert" | "IdVerification" | "IdSubmitted" | "ReferenceCheck" | "ReferenceSubmitted">("Dashboard");
+  const [showSessionExpired, setShowSessionExpired] = useState(false);
 
   // Bootstrap authentication on mount
   useEffect(() => {
     bootstrap();
   }, [bootstrap]);
+
+  // Listen for session expired event
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      setShowSessionExpired(true);
+    };
+
+    window.addEventListener('auth:session-expired', handleSessionExpired);
+    return () => window.removeEventListener('auth:session-expired', handleSessionExpired);
+  }, []);
 
   // Fetch user data when authenticated
   useEffect(() => {
@@ -472,6 +483,28 @@ export default function App() {
         />
       )}
       {renderPage()}
+      
+      {/* Session Expired Modal */}
+      {showSessionExpired && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md mx-4">
+            <h2 className="text-xl font-semibold mb-2">Session Expired</h2>
+            <p className="text-gray-600 mb-4">
+              Your session has expired. Please log in again to continue.
+            </p>
+            <button
+              onClick={() => {
+                setShowSessionExpired(false);
+                handleLogout();
+                setAuthPage('login');
+              }}
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Log In Again
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

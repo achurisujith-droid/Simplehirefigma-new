@@ -4,7 +4,7 @@
  */
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 interface AssessmentSessionState {
   sessionId: string | null;
@@ -20,7 +20,8 @@ export const useAssessmentSession = create<AssessmentSessionState>()(
       clearSession: () => set({ sessionId: null }),
     }),
     {
-      name: 'assessment-session', // localStorage key
+      name: 'assessment-session',
+      storage: createJSONStorage(() => sessionStorage), // Use sessionStorage instead
     }
   )
 );

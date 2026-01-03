@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Camera, Mic, Volume2, Eye, CheckCircle2, AlertTriangle, Play, Pause, Clock } from "lucide-react";
 import { Button } from "./ui/button";
 import { Conversation } from "@elevenlabs/client";
+import { apiClient } from "../src/services/api-client";
 
 interface InterviewLivePageProps {
   onComplete: () => void;
@@ -40,6 +41,7 @@ export function InterviewLivePage({ onComplete, sessionId }: InterviewLivePagePr
   
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [hasPermission, setHasPermission] = useState(false);
   const [isAISpeaking, setIsAISpeaking] = useState(false);
   const [isUserSpeaking, setIsUserSpeaking] = useState(false);
@@ -64,79 +66,38 @@ export function InterviewLivePage({ onComplete, sessionId }: InterviewLivePagePr
     async function loadVoiceQuestions() {
       try {
         setIsLoading(true);
-        
-        const token = localStorage.getItem('token');
-        if (!token) {
-          console.warn('No authentication token found, using fallback questions');
-          setDefaultQuestions();
-          return;
-        }
+        setError(null);
 
         // Call voice/start endpoint to get session info
-        const response = await fetch('/api/interviews/voice/start', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            role: jobRole || DEFAULT_JOB_ROLE
-          })
+        const response = await apiClient.post<VoiceStartResponse>('/interviews/voice/start', {
+          role: jobRole || DEFAULT_JOB_ROLE
         });
 
-        if (!response.ok) {
-          throw new Error('Failed to start voice session');
+        if (!response.success || !response.data?.questions?.length) {
+          throw new Error('Failed to load interview questions. Please try again.');
         }
 
-        const data: { success: boolean; data: VoiceStartResponse } = await response.json();
+        setQuestions(response.data.questions);
+        setVoiceSessionId(response.data.sessionId);
+        setCandidateName(response.data.candidateName);
+        setJobRole(response.data.jobRole);
         
-        if (data.success && data.data) {
-          setQuestions(data.data.questions);
-          setVoiceSessionId(data.data.sessionId);
-          setCandidateName(data.data.candidateName);
-          setJobRole(data.data.jobRole);
-          
-          // Check if we should use ElevenLabs
-          if (data.data.signedUrl) {
-            setUseElevenLabs(true);
-            console.log('ElevenLabs signedUrl available, will use ElevenLabs integration');
-          } else {
-            console.log('No ElevenLabs signedUrl, using fallback speech synthesis');
-          }
+        // Check if we should use ElevenLabs
+        if (response.data.signedUrl) {
+          setUseElevenLabs(true);
+          console.log('ElevenLabs signedUrl available, will use ElevenLabs integration');
         } else {
-          console.warn('No voice session data, using fallback');
-          setDefaultQuestions();
+          console.log('No ElevenLabs signedUrl, using fallback speech synthesis');
         }
       } catch (error) {
         console.error('Failed to load voice questions:', error);
-        setDefaultQuestions();
+        setError(error instanceof Error ? error.message : 'Failed to load interview questions');
       } finally {
         setIsLoading(false);
       }
     }
     loadVoiceQuestions();
   }, []);
-
-  // Set default fallback questions
-  const setDefaultQuestions = () => {
-    setQuestions([
-      {
-        id: '1',
-        text: "Tell me about your professional background and experience.",
-        topic: "Background & Experience"
-      },
-      {
-        id: '2',
-        text: "Describe a complex problem you solved recently. What was your approach?",
-        topic: "Problem Solving"
-      },
-      {
-        id: '3',
-        text: "What are your main technical skills and how have you applied them?",
-        topic: "Technical Skills"
-      }
-    ]);
-  };
 
   // Setup camera, MediaRecorder, and ElevenLabs connection
   useEffect(() => {
@@ -226,39 +187,19 @@ export function InterviewLivePage({ onComplete, sessionId }: InterviewLivePagePr
   // Setup ElevenLabs conversation
   async function setupElevenLabsConversation() {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        console.error('No auth token for ElevenLabs connection');
-        return;
-      }
-
       // Get signed URL again (in case it changed)
-      const response = await fetch('/api/interviews/voice/start', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          role: jobRole
-        })
+      const response = await apiClient.post<VoiceStartResponse>('/interviews/voice/start', {
+        role: jobRole
       });
 
-      if (!response.ok) {
-        console.error('Failed to get signed URL for ElevenLabs');
-        return;
-      }
-
-      const data: { success: boolean; data: VoiceStartResponse } = await response.json();
-      
-      if (!data.data.signedUrl) {
+      if (!response.success || !response.data?.signedUrl) {
         console.error('No signed URL in response');
         return;
       }
 
       // Start ElevenLabs conversation with dynamic variables
       const conversation = await Conversation.startSession({
-        signedUrl: data.data.signedUrl,
+        signedUrl: response.data.signedUrl,
         dynamicVariables: {
           sessionId: voiceSessionId,
           candidateName: candidateName,
@@ -501,6 +442,32 @@ export function InterviewLivePage({ onComplete, sessionId }: InterviewLivePagePr
           <p className="text-slate-600">Preparing your personalized interview...</p>
         </div>
       </main>
+    );
+  }
+
+  // Show error state if questions failed to load
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-8">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md text-center">
+          <h2 className="text-xl font-semibold text-red-800 mb-2">Unable to Load Interview</h2>
+          <p className="text-red-600 mb-4">{error}</p>
+          <div className="flex gap-3 justify-center">
+            <button 
+              onClick={() => window.location.reload()} 
+              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            >
+              Try Again
+            </button>
+            <button 
+              onClick={() => window.location.href = '/login'} 
+              className="px-4 py-2 border border-red-600 text-red-600 rounded hover:bg-red-50"
+            >
+              Back to Login
+            </button>
+          </div>
+        </div>
+      </div>
     );
   }
 

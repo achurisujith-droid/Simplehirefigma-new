@@ -54,14 +54,16 @@ class ApiClient {
         // Handle 401 Unauthorized
         if (response.status === 401 && typeof window !== 'undefined') {
           // Dispatch event for auth store to handle
-          window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+          window.dispatchEvent(new CustomEvent('auth:session-expired', {
+            detail: { message: 'Your session has expired. Please log in again.' }
+          }));
+          
+          // Throw error - don't return success: false
+          throw new Error('Session expired. Please log in again.');
         }
 
-        throw {
-          code: data.code || `HTTP_${response.status}`,
-          message: data.message || response.statusText,
-          details: data.details,
-        } as ApiError;
+        // For other errors, throw with the message from server
+        throw new Error(data.message || `Request failed with status ${response.status}`);
       }
 
       return {
@@ -148,14 +150,16 @@ class ApiClient {
       if (!response.ok) {
         // Handle 401 Unauthorized
         if (response.status === 401 && typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+          window.dispatchEvent(new CustomEvent('auth:session-expired', {
+            detail: { message: 'Your session has expired. Please log in again.' }
+          }));
+          
+          // Throw error - don't return success: false
+          throw new Error('Session expired. Please log in again.');
         }
 
-        throw {
-          code: data.code || `HTTP_${response.status}`,
-          message: data.message || response.statusText,
-          details: data.details,
-        } as ApiError;
+        // For other errors, throw with the message from server
+        throw new Error(data.message || `Request failed with status ${response.status}`);
       }
 
       return {

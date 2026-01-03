@@ -14,23 +14,6 @@ export function ReferenceCheckPage({ onSubmitReferences, existingReferences }: R
   const [references, setReferences] = useState<ReferenceItem[]>(existingReferences || []);
   const [showForm, setShowForm] = useState(existingReferences ? existingReferences.length === 0 : true);
 
-  // Auto-save references to localStorage whenever they change (for draft state)
-  useEffect(() => {
-    if (references.length > 0) {
-      const storedUser = localStorage.getItem('currentUser');
-      if (storedUser) {
-        try {
-          const userData = JSON.parse(storedUser);
-          // Save draft references (not yet submitted)
-          userData.draftReferences = references;
-          localStorage.setItem('currentUser', JSON.stringify(userData));
-        } catch (error) {
-          console.error('Error saving draft references:', error);
-        }
-      }
-    }
-  }, [references]);
-
   const handleAddReference = (reference: Omit<ReferenceItem, 'id' | 'status'>) => {
     const newReference: ReferenceItem = {
       ...reference,

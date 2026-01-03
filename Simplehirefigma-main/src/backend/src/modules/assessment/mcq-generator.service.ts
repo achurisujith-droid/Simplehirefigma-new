@@ -88,31 +88,6 @@ function getTopicsForRole(classification: ProfileClassification): string[] {
 }
 
 /**
- * Generate fallback questions if LLM fails
- */
-function getFallbackQuestions(
-  topics: string[],
-  difficulty: MCQDifficulty,
-  count: number
-): MCQQuestion[] {
-  const fallbackQuestions: MCQQuestion[] = [];
-
-  for (let i = 0; i < count; i++) {
-    const topic = topics[i % topics.length];
-    fallbackQuestions.push({
-      id: uuidv4(),
-      questionText: `What is your experience level with ${topic}?`,
-      options: ['No experience', 'Basic knowledge', 'Intermediate level', 'Expert level'],
-      correctAnswerIndex: 2,
-      skillCategory: topic,
-      difficulty,
-    });
-  }
-
-  return fallbackQuestions;
-}
-
-/**
  * Generate MCQ questions using GPT-4o
  */
 export async function generateMCQQuestions(
@@ -174,15 +149,19 @@ Return ONLY valid JSON array:
 
     const content = response.choices[0]?.message?.content;
     if (!content) {
-      logger.warn('No response from OpenAI for MCQ generation, using fallback');
-      return getFallbackQuestions(topics, mcqDifficulty, questionCount);
+      logger.error('No response from OpenAI for MCQ generation');
+      throw new Error(
+        'Failed to generate MCQ questions. Please try again.'
+      );
     }
 
     // Parse the response
     const questionsData = safeJsonParse<any[]>(content);
     if (!questionsData || !Array.isArray(questionsData)) {
-      logger.warn('Failed to parse MCQ response, using fallback');
-      return getFallbackQuestions(topics, mcqDifficulty, questionCount);
+      logger.error('Failed to parse MCQ response from OpenAI');
+      throw new Error(
+        'Failed to generate MCQ questions. Please try again.'
+      );
     }
 
     // Transform and validate questions
@@ -204,23 +183,19 @@ Return ONLY valid JSON array:
       explanation: q.explanation,
     }));
 
-    // Ensure we have the right number of questions
+    // Log if we got fewer questions than requested
     if (questions.length < questionCount) {
-      const additionalQuestions = getFallbackQuestions(
-        topics,
-        mcqDifficulty,
-        questionCount - questions.length
-      );
-      questions.push(...additionalQuestions);
+      logger.warn(`Only generated ${questions.length} of ${questionCount} questions`);
+      // Return what we have, but log it - don't use fake fallbacks
     }
 
     logger.info(`Successfully generated ${questions.length} MCQ questions`);
     return questions.slice(0, questionCount);
   } catch (error) {
     logger.error('Error generating MCQ questions:', error);
-    const topics = customTopics || getTopicsForRole(classification);
-    const mcqDifficulty = difficulty || determineMCQDifficulty(classification.yearsExperience);
-    return getFallbackQuestions(topics, mcqDifficulty, questionCount);
+    throw new Error(
+      'Failed to generate MCQ questions. Please try again.'
+    );
   }
 }
 

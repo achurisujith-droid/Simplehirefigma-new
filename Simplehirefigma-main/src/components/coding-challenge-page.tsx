@@ -3,6 +3,7 @@ import { Code, Clock, CheckCircle2, AlertCircle, ArrowRight, ArrowLeft } from "l
 import { Button } from "./ui/button";
 import { interviewService } from "../src/services/interview.service";
 import { toast } from "sonner";
+import { apiClient } from "../src/services/api-client";
 
 interface CodingQuestion {
   id: string;
@@ -36,35 +37,20 @@ export function CodingChallengePage({ onComplete }: CodingChallengePageProps) {
       try {
         setIsLoading(true);
         setError(null);
-        
-        const token = localStorage.getItem('token');
-        if (!token) {
-          throw new Error('No authentication token found');
+
+        const response = await apiClient.get<CodingQuestion[]>('/interviews/coding');
+
+        if (!response.success || !response.data?.length) {
+          throw new Error('Failed to load coding challenges. Please try again.');
         }
 
-        const response = await fetch('/api/interviews/coding', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
+        setQuestions(response.data);
+        // Initialize solutions state
+        const initialSolutions: Record<string, string> = {};
+        response.data.forEach((q: CodingQuestion) => {
+          initialSolutions[q.id] = '';
         });
-
-        if (!response.ok) {
-          throw new Error('Failed to load coding challenges');
-        }
-
-        const data = await response.json();
-        if (data.success && data.data && data.data.length > 0) {
-          setQuestions(data.data);
-          // Initialize solutions state
-          const initialSolutions: Record<string, string> = {};
-          data.data.forEach((q: CodingQuestion) => {
-            initialSolutions[q.id] = '';
-          });
-          setSolutions(initialSolutions);
-        } else {
-          throw new Error('No coding challenges received from server');
-        }
+        setSolutions(initialSolutions);
       } catch (error) {
         console.error('Failed to load coding challenges:', error);
         setError(error instanceof Error ? error.message : 'Failed to load challenges');

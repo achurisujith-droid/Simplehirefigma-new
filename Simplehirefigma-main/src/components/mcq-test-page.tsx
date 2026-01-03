@@ -3,6 +3,7 @@ import { CheckCircle, Clock, AlertCircle } from "lucide-react";
 import { Button } from "./ui/button";
 import { interviewService } from "../src/services/interview.service";
 import { toast } from "sonner";
+import { apiClient } from "../src/services/api-client";
 
 interface Question {
   id: string;
@@ -32,29 +33,14 @@ export function McqTestPage({ onComplete }: McqTestPageProps) {
       try {
         setIsLoading(true);
         setError(null);
-        
-        const token = localStorage.getItem('token');
-        if (!token) {
-          throw new Error('No authentication token found');
+
+        const response = await apiClient.get<Question[]>('/interviews/mcq');
+
+        if (!response.success || !response.data?.length) {
+          throw new Error('Failed to load MCQ questions. Please try again.');
         }
 
-        const response = await fetch('/api/interviews/mcq', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to load MCQ questions');
-        }
-
-        const data = await response.json();
-        if (data.success && data.data && data.data.length > 0) {
-          setQuestions(data.data);
-        } else {
-          throw new Error('No questions received from server');
-        }
+        setQuestions(response.data);
       } catch (error) {
         console.error('Failed to load MCQ questions:', error);
         setError(error instanceof Error ? error.message : 'Failed to load questions');

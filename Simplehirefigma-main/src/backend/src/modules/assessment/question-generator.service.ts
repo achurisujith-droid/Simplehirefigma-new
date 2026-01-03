@@ -77,15 +77,11 @@ export async function generateVoiceQuestions(
         logger.info(`Generated question ${i + 1}/${questionCount}: ${generatedQuestion.topic}`);
       } catch (error) {
         logger.error(`Error generating question ${i + 1}:`, error);
-        // Add a fallback generic question
-        questions.push({
-          id: uuidv4(),
-          text: `Tell me about your experience with ${primarySkill}.`,
-          topic: primarySkill,
-          isFollowUp: false,
-          level,
-          timestamp: Date.now(),
-        });
+        // Don't add fallback - let it fail if we can't generate real questions
+        // The outer try-catch will handle the error
+        throw new Error(
+          'Failed to generate interview questions. Please try again.'
+        );
       }
     }
 

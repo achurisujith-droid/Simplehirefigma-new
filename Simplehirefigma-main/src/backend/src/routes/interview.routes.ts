@@ -395,52 +395,16 @@ router.post('/voice/start', async (req: AuthRequest, res: Response, next: NextFu
     let voiceQuestions = plan?.voiceQuestions || [];
     
     if (voiceQuestions.length === 0) {
-      // Fallback: Generate default voice questions based on role and resume
-      logger.warn('[voice/start] No personalized questions found, using fallback static questions');
-      const classification = plan?.classification;
-      const jobTitle = role || classification?.primaryRole || 'Software Engineer';
-      
-      voiceQuestions = [
-        {
-          id: 'voice_1',
-          text: `Tell me about your experience as a ${jobTitle}.`,
-          topic: 'experience',
-        },
-        {
-          id: 'voice_2',
-          text: 'What are your greatest technical strengths?',
-          topic: 'technical',
-        },
-        {
-          id: 'voice_3',
-          text: 'Describe a challenging project you worked on and how you overcame obstacles.',
-          topic: 'problem_solving',
-        },
-        {
-          id: 'voice_4',
-          text: 'How do you stay updated with the latest technologies in your field?',
-          topic: 'learning',
-        },
-        {
-          id: 'voice_5',
-          text: 'Why are you interested in this position and what are your career goals?',
-          topic: 'motivation',
-        },
-      ];
-
-      // Store fallback questions in assessment plan
-      await prisma.assessmentPlan.update({
-        where: { id: assessmentPlan.id },
-        data: {
-          interviewPlan: {
-            ...plan,
-            voiceQuestions,
-          },
-        },
-      });
-    } else {
-      logger.info(`[voice/start] Using ${voiceQuestions.length} personalized questions from assessment plan`);
+      // No personalized questions found - throw error
+      logger.error('[voice/start] No personalized questions found in assessment plan');
+      throw new AppError(
+        'Unable to generate interview questions. Please ensure your resume is uploaded.',
+        400,
+        'NO_QUESTIONS_AVAILABLE'
+      );
     }
+    
+    logger.info(`[voice/start] Using ${voiceQuestions.length} personalized questions from assessment plan`);
 
     // Determine job role from various sources
     const jobRole = role || plan?.classification?.primaryRole || assessmentPlan.primarySkill || 'Software Engineer';

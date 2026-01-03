@@ -3,6 +3,7 @@ import { AuthRequest } from '../types';
 import prisma from '../config/database';
 import { AppError } from '../utils/errors';
 import { comparePassword, hashPassword } from '../utils/password';
+import { createDefaultUserData } from '../utils/userData';
 
 export const getUserData = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
@@ -111,9 +112,14 @@ export const updateInterviewProgress = async (
   try {
     const progress = req.body;
 
-    const userData = await prisma.userData.update({
+    // Use upsert to handle cases where userData doesn't exist yet
+    const userData = await prisma.userData.upsert({
       where: { userId: req.user!.id },
-      data: {
+      update: {
+        interviewProgress: progress,
+      },
+      create: {
+        ...createDefaultUserData(req.user!.id),
         interviewProgress: progress,
       },
     });
@@ -136,9 +142,14 @@ export const updateIdVerificationStatus = async (
   try {
     const { status } = req.body;
 
-    const userData = await prisma.userData.update({
+    // Use upsert to handle cases where userData doesn't exist yet
+    const userData = await prisma.userData.upsert({
       where: { userId: req.user!.id },
-      data: {
+      update: {
+        idVerificationStatus: status,
+      },
+      create: {
+        ...createDefaultUserData(req.user!.id),
         idVerificationStatus: status,
       },
     });
@@ -161,9 +172,14 @@ export const updateReferenceCheckStatus = async (
   try {
     const { status } = req.body;
 
-    const userData = await prisma.userData.update({
+    // Use upsert to handle cases where userData doesn't exist yet
+    const userData = await prisma.userData.upsert({
       where: { userId: req.user!.id },
-      data: {
+      update: {
+        referenceCheckStatus: status,
+      },
+      create: {
+        ...createDefaultUserData(req.user!.id),
         referenceCheckStatus: status,
       },
     });

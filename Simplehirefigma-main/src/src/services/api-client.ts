@@ -17,10 +17,13 @@ class ApiClient {
   }
 
   // Get default headers
-  private getHeaders(): HeadersInit {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
+  private getHeaders(body?: any): HeadersInit {
+    const headers: HeadersInit = {};
+
+    // Don't set Content-Type for FormData - browser will set it with boundary
+    if (!(body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     // No Authorization header - using cookies instead
     return headers;
@@ -40,7 +43,7 @@ class ApiClient {
         ...options,
         credentials: 'include', // Include cookies in request
         headers: {
-          ...this.getHeaders(),
+          ...this.getHeaders(options.body),
           ...options.headers,
         },
         signal: controller.signal,
@@ -98,6 +101,14 @@ class ApiClient {
   }
 
   public async post<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+    // If data is FormData, pass it directly without JSON.stringify
+    if (data instanceof FormData) {
+      return this.request<T>(endpoint, {
+        method: 'POST',
+        body: data,
+      });
+    }
+    
     return this.request<T>(endpoint, {
       method: 'POST',
       body: JSON.stringify(data),
@@ -105,6 +116,14 @@ class ApiClient {
   }
 
   public async put<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+    // If data is FormData, pass it directly without JSON.stringify
+    if (data instanceof FormData) {
+      return this.request<T>(endpoint, {
+        method: 'PUT',
+        body: data,
+      });
+    }
+    
     return this.request<T>(endpoint, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -112,6 +131,14 @@ class ApiClient {
   }
 
   public async patch<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+    // If data is FormData, pass it directly without JSON.stringify
+    if (data instanceof FormData) {
+      return this.request<T>(endpoint, {
+        method: 'PATCH',
+        body: data,
+      });
+    }
+    
     return this.request<T>(endpoint, {
       method: 'PATCH',
       body: JSON.stringify(data),

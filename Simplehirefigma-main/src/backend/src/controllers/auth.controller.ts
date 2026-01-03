@@ -7,6 +7,7 @@ import { AppError } from '../utils/errors';
 import { sha256Hash } from '../utils/crypto';
 import logger from '../config/logger';
 import config, { getSessionCookieOptions } from '../config';
+import { createDefaultUserData } from '../utils/userData';
 
 export const signup = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -74,7 +75,21 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
     logger.info(`User signed up: ${user.email}`, { userId: user.id });
 
     // Set HTTP-only session cookie
-    res.cookie(config.cookie.name, token, getSessionCookieOptions());
+    const cookieOptions = getSessionCookieOptions();
+    res.cookie(config.cookie.name, token, cookieOptions);
+    
+    // Log cookie being set
+    logger.info('Session cookie set', {
+      userId: user.id,
+      cookieName: config.cookie.name,
+      cookieOptions: {
+        httpOnly: cookieOptions.httpOnly,
+        secure: cookieOptions.secure,
+        sameSite: cookieOptions.sameSite,
+        maxAge: cookieOptions.maxAge,
+        path: cookieOptions.path,
+      },
+    });
 
     res.status(201).json({
       success: true,
@@ -115,6 +130,14 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
       throw new AppError('Invalid credentials', 401, 'INVALID_CREDENTIALS');
     }
 
+    // Ensure userData exists (for accounts created before userData was added)
+    // Use upsert to create userData if it doesn't exist
+    await prisma.userData.upsert({
+      where: { userId: user.id },
+      update: {}, // Don't update if exists
+      create: createDefaultUserData(user.id),
+    });
+
     // Generate tokens
     const token = generateAccessToken(user.id, user.email);
     const refreshToken = generateRefreshToken(user.id, user.email);
@@ -143,7 +166,21 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
     logger.info(`User logged in: ${user.email}`, { userId: user.id });
 
     // Set HTTP-only session cookie
-    res.cookie(config.cookie.name, token, getSessionCookieOptions());
+    const cookieOptions = getSessionCookieOptions();
+    res.cookie(config.cookie.name, token, cookieOptions);
+    
+    // Log cookie being set
+    logger.info('Session cookie set', {
+      userId: user.id,
+      cookieName: config.cookie.name,
+      cookieOptions: {
+        httpOnly: cookieOptions.httpOnly,
+        secure: cookieOptions.secure,
+        sameSite: cookieOptions.sameSite,
+        maxAge: cookieOptions.maxAge,
+        path: cookieOptions.path,
+      },
+    });
 
     res.json({
       success: true,

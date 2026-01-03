@@ -116,6 +116,14 @@ class ApiClient {
   }
 
   public async put<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+    // If data is FormData, pass it directly without JSON.stringify
+    if (data instanceof FormData) {
+      return this.request<T>(endpoint, {
+        method: 'PUT',
+        body: data,
+      });
+    }
+    
     return this.request<T>(endpoint, {
       method: 'PUT',
       body: JSON.stringify(data),
@@ -123,6 +131,14 @@ class ApiClient {
   }
 
   public async patch<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+    // If data is FormData, pass it directly without JSON.stringify
+    if (data instanceof FormData) {
+      return this.request<T>(endpoint, {
+        method: 'PATCH',
+        body: data,
+      });
+    }
+    
     return this.request<T>(endpoint, {
       method: 'PATCH',
       body: JSON.stringify(data),

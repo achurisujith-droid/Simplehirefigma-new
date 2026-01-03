@@ -13,6 +13,7 @@
     "prisma:generate": "cd Simplehirefigma-main/src/backend && npx prisma generate",
     "prisma:migrate": "cd Simplehirefigma-main/src/backend && npx prisma migrate deploy",
     "prisma:seed": "cd Simplehirefigma-main/src/backend && npm run prisma:seed",
+    "prisma:reset-demo": "cd Simplehirefigma-main/src/backend && npm run prisma:reset-demo",
     "railway:build": "rm -rf node_modules && npm run install:backend && npm run prisma:generate && npm run build:backend",
     "railway:start": "npm run prisma:migrate && npm run prisma:seed && npm run start:backend"
   },

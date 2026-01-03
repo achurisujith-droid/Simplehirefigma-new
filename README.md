@@ -19,6 +19,7 @@
 ## 📋 Table of Contents
 
 - [Overview](#overview)
+- [Demo Accounts & Testing](#demo-accounts--testing)
 - [Features](#features)
 - [Architecture](#architecture)
 - [Technology Stack](#technology-stack)
@@ -47,6 +48,42 @@
 - **Reference Checks**: Automated reference collection and verification
 - **Payment Processing**: Integrated payment system for verification packages
 - **Real-time Analytics**: Dashboard for tracking candidate progress and results
+
+---
+
+## 🔐 Demo Accounts & Testing
+
+> **⚠️ IMPORTANT**: This platform is configured for **DEMO/TESTING ONLY**. Only the following demo accounts will work for login. All demo accounts start with a clean slate for testing purposes.
+
+### Available Demo Login Credentials
+
+| Email | Password | Description |
+|-------|----------|-------------|
+| `demo@simplehire.ai` | `demo` | Demo user with all products purchased |
+| `john@example.com` | `password123` | User with skill interview product |
+| `sarah@example.com` | `password123` | User with skill + ID verification |
+| `mike@example.com` | `password123` | User with all products |
+| `emma@example.com` | `password123` | User with skill interview |
+| `alex@example.com` | `password123` | User with no products |
+
+### Testing Guidelines
+
+- **Account Creation**: Regular signup is disabled. Use only the demo accounts above.
+- **Clean State**: All demo accounts are reset to a clean state on deployment.
+- **Data Persistence**: Any data created during testing is for demonstration purposes only.
+- **Reset Database**: To reset all demo accounts to clean state, run:
+  ```bash
+  npm run prisma:reset-demo
+  ```
+
+### What Gets Reset
+
+When you run the reset script or redeploy:
+- ✅ All assessments and interview data
+- ✅ All progress tracking
+- ✅ All payments and purchases (products preserved)
+- ✅ All sessions and auth tokens
+- ✅ Demo accounts restored to initial state
 
 ---
 
@@ -223,12 +260,14 @@ npm run prisma:generate
 # Run database migrations
 npm run prisma:migrate
 
-# Optional: Seed database with test data
+# Seed database with demo users and products
 npm run prisma:seed
 
 # Start backend development server
 npm run dev
 ```
+
+> **Note**: The seed script creates 6 demo accounts. See the [Demo Accounts & Testing](#demo-accounts--testing) section for login credentials.
 
 **Backend will be running at**: `http://localhost:3000`
 
@@ -288,7 +327,7 @@ Copy these values into your `.env` file.
 ### Step 6: Test the Application
 
 1. Open browser at `http://localhost:5173`
-2. Sign up for a new account
+2. Log in with one of the demo accounts (see [Demo Accounts](#demo-accounts--testing))
 3. Test authentication flow
 4. Check backend logs to verify API requests
 5. Access Prisma Studio to view database:
@@ -296,6 +335,21 @@ Copy these values into your `.env` file.
    cd Simplehirefigma-main/src/backend
    npm run prisma:studio
    ```
+
+> **Important**: Regular signup is disabled. Use only the demo accounts for testing.
+
+### Step 7: Reset Database (Optional)
+
+To reset all demo accounts and data to a clean state:
+
+```bash
+# From the root directory
+npm run prisma:reset-demo
+
+# Or from the backend directory
+cd Simplehirefigma-main/src/backend
+npm run prisma:reset-demo
+```
 
 ---
 

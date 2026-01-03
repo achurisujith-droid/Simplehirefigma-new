@@ -90,7 +90,7 @@ export function InterviewLivePage({ onComplete, sessionId }: InterviewLivePagePr
           console.log('ElevenLabs signedUrl available, will use ElevenLabs integration');
         } else {
           // No ElevenLabs = cannot proceed with agent-based interview
-          throw new Error('Voice interview agent not available. Please contact support.');
+          throw new Error('Voice interview agent is not available. Please ensure your internet connection is stable and try refreshing the page. If the problem persists, contact support.');
         }
       } catch (error) {
         console.error('Failed to load voice questions:', error);

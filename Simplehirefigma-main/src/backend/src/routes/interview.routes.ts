@@ -263,7 +263,7 @@ router.post(
             analysis.professionalSummary,
           ].filter(Boolean).join('\n');
           
-          const primarySkill = classification.keySkills[0] || analysis.candidateProfile.currentRole;
+          const primarySkill = classification.keySkills?.[0] || analysis.candidateProfile.currentRole;
           const level = classification.yearsExperience < 2 ? 'entry' : 
                         classification.yearsExperience < 5 ? 'mid' : 
                         classification.yearsExperience < 10 ? 'senior' : 'executive';
@@ -730,6 +730,7 @@ router.post('/next-question', async (req: Request, res: Response, next: NextFunc
         evaluationHistory.push({
           questionId: currentQuestion.id,
           question: currentQuestion.question || currentQuestion.text,
+          topic: currentQuestion.topic || currentQuestion.category || '',
           answer: previousAnswer.transcript,
           evaluation,
           timestamp: new Date(),
@@ -753,12 +754,15 @@ router.post('/next-question', async (req: Request, res: Response, next: NextFunc
     // Determine if we should do follow-up or new topic
     const evaluationHistory = plan.evaluationHistory || [];
     const recentAnswers = evaluationHistory.slice(-3); // Last 3 answers
-    const currentTopic = session.questions[session.currentQuestionIndex]?.topic || 
-                        session.questions[session.currentQuestionIndex]?.category || '';
+    const currentQuestion = session.questions[session.currentQuestionIndex];
+    const currentTopic = currentQuestion?.topic || currentQuestion?.category || '';
     
-    // Count follow-ups for current topic
+    // Count follow-ups for current topic (exact topic match)
     const followUpsForCurrentTopic = recentAnswers.filter(
-      (e: any) => e.evaluation?.isFollowUp && e.question.includes(currentTopic)
+      (e: any) => {
+        const questionTopic = e.question?.topic || e.topic || '';
+        return e.evaluation?.isFollowUp && questionTopic === currentTopic;
+      }
     ).length;
 
     // Decide: follow-up or new topic (max 2 follow-ups per topic)

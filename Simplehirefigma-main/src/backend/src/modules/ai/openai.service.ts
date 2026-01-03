@@ -83,6 +83,8 @@ export interface QuestionGenerationContext {
   totalQuestionsAsked: number;
   maxQuestions: number;
   previousQuestions: Array<{ question: string; answer?: string; score?: number }>;
+  shouldFollowUp?: boolean;
+  currentTopic?: string;
 }
 
 /**

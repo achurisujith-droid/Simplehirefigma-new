@@ -13,6 +13,24 @@ import { componentEvaluatorService } from '../modules/assessment/component-evalu
 import { interviewEvaluatorService } from '../modules/assessment/interview-evaluator.service';
 import { sessionManager, VoiceQuestion } from '../services/session-manager';
 import logger from '../config/logger';
+import { parseResumeFile } from '../modules/resume/parsers';
+import { openaiService } from '../modules/ai/openai.service';
+import { profileClassifierService } from '../modules/assessment/profile-classifier.service';
+import { assessmentPlannerService } from '../modules/assessment/assessment-planner.service';
+import { questionGeneratorService } from '../modules/assessment/question-generator.service';
+import path from 'path';
+import fs from 'fs/promises';
+import os from 'os';
+
+// Helper function to normalize question format for backward compatibility
+// Handles both old format { question, category } and new format { text, topic }
+function normalizeQuestionText(question: any): string {
+  return question.question || question.text || 'Question';
+}
+
+function normalizeQuestionCategory(question: any): string {
+  return question.category || question.topic || 'General';
+}
 
 // Type for stored evaluation data
 interface StoredEvaluation {
@@ -125,7 +143,16 @@ router.post(
     { name: 'idCard', maxCount: 1 },
   ]),
   async (req: AuthRequest, res: Response, next: NextFunction) => {
+    let tempResumeDir: string | null = null;
+
     try {
+      logger.info('[Step 0] Starting assessment process');
+      
+      if (!req.user) {
+        logger.error('[Step 0] Unauthorized: No user in request');
+        throw new AppError('Unauthorized', 401, 'UNAUTHORIZED');
+      }
+
       // Validate that multer processed the files
       if (!req.files) {
         logger.error('[start-assessment] req.files is undefined - multer may have failed to process the request');
@@ -143,64 +170,201 @@ router.post(
         throw new AppError('Resume is required', 400, 'VALIDATION_ERROR');
       }
 
-      // Upload resume
-      const resumeResult = await uploadFile(files.resume[0], 'resumes');
-      
-      // Upload ID card if provided
-      let idCardUrl: string | undefined;
-      if (files.idCard) {
-        const idCardResult = await uploadFile(files.idCard[0], 'id-cards');
-        idCardUrl = idCardResult.url;
-      }
+      const resumeFile = files.resume[0];
+      const idCardFile = files.idCard?.[0];
 
-      // Create or update assessment plan for this user
-      const existingPlan = await prisma.assessmentPlan.findFirst({
-        where: { userId: req.user!.id, status: 'DRAFT' },
-        orderBy: { createdAt: 'desc' },
-      });
+      logger.info(`[Step 0] Assessment initiated for user ${req.user.id}, resume: ${resumeFile.originalname}`);
 
-      let assessmentPlan;
-      
-      if (existingPlan) {
-        // Update existing plan with resume info
-        const currentPlan = (existingPlan.interviewPlan as InterviewPlanData) ?? {};
-        assessmentPlan = await prisma.assessmentPlan.update({
-          where: { id: existingPlan.id },
-          data: {
-            resumeUrl: resumeResult.url,
-            resumeText: '', // Will be populated by resume parser later
-            interviewPlan: {
-              ...currentPlan,
-              resumeUrl: resumeResult.url,
+      // Step 1: Save resume to temp directory and parse
+      try {
+        logger.info('[Step 1] Creating temp directory and saving resume');
+        tempResumeDir = path.join(os.tmpdir(), `resume-${Date.now()}`);
+        await fs.mkdir(tempResumeDir, { recursive: true });
+        const resumePath = path.join(tempResumeDir, resumeFile.originalname);
+        await fs.writeFile(resumePath, resumeFile.buffer);
+        logger.info(`[Step 1] Resume saved to ${resumePath}`);
+
+        logger.info('[Step 1] Parsing resume file');
+        const resumeText = await parseResumeFile(
+          resumePath,
+          resumeFile.mimetype,
+          resumeFile.originalname
+        );
+        logger.info(`[Step 1] Resume parsed successfully, length: ${resumeText.length} characters`);
+
+        // Step 2: Analyze resume with OpenAI
+        logger.info('[Step 2] Analyzing resume with OpenAI');
+        const analysis = await openaiService.analyzeResumeDeep(resumeText);
+        logger.info(`[Step 2] Resume analysis complete, role: ${analysis.candidateProfile.currentRole}`);
+
+        // Step 3: Classify candidate profile
+        logger.info('[Step 3] Classifying candidate profile');
+        const classification = await profileClassifierService.classifyProfile(analysis);
+        logger.info(`[Step 3] Classification complete, category: ${classification.roleCategory}, experience: ${classification.yearsExperience}`);
+
+        // Step 4: Plan assessment
+        logger.info('[Step 4] Planning assessment');
+        const plan = assessmentPlannerService.planAssessment(classification);
+        logger.info(`[Step 4] Assessment plan created, components: ${plan.components.join(', ')}`);
+
+        // Step 5: Generate voice questions (if voice component enabled)
+        let voiceQuestions: any[] = [];
+        if (plan.components.includes('VOICE') && plan.questionCounts.voice > 0) {
+          logger.info(`[Step 5] Generating ${plan.questionCounts.voice} voice questions`);
+          voiceQuestions = await questionGeneratorService.generateVoiceQuestions(
+            analysis,
+            classification,
+            plan.questionCounts.voice
+          );
+          logger.info(`[Step 5] Generated ${voiceQuestions.length} voice questions`);
+        } else {
+          logger.info('[Step 5] Skipping voice question generation (not required)');
+        }
+
+        // Step 6: Upload resume and ID card to S3
+        logger.info('[Step 6] Uploading files to S3');
+        const resumeUpload = await uploadFile(resumeFile, 'resumes');
+        logger.info(`[Step 6] Resume uploaded to S3: ${resumeUpload.url}`);
+
+        let idCardUrl: string | undefined;
+        if (idCardFile) {
+          logger.info('[Step 6] Uploading ID card to S3');
+          const idCardUpload = await uploadFile(idCardFile, 'id-cards');
+          idCardUrl = idCardUpload.url;
+          logger.info(`[Step 6] ID card uploaded to S3: ${idCardUrl}`);
+        }
+
+        // Step 7: Check if existing draft plan exists
+        const existingPlan = await prisma.assessmentPlan.findFirst({
+          where: { userId: req.user.id, status: 'DRAFT' },
+          orderBy: { createdAt: 'desc' },
+        });
+
+        let assessmentPlan;
+        
+        if (existingPlan) {
+          // Update existing plan with full data
+          logger.info('[Step 7] Updating existing assessment plan');
+          assessmentPlan = await prisma.assessmentPlan.update({
+            where: { id: existingPlan.id },
+            data: {
+              resumeUrl: resumeUpload.url,
+              resumeText,
+              primarySkill: classification.keySkills[0] || analysis.candidateProfile.currentRole,
+              components: plan.components,
+              questionCounts: plan.questionCounts as any,
+              difficulty: plan.difficulty,
+              estimatedDuration: plan.duration,
+              skillBuckets: {
+                technical: analysis.coreSkills.technical,
+                business: analysis.coreSkills.business,
+                soft: analysis.coreSkills.soft,
+              },
+              interviewPlan: {
+                classification: classification as any,
+                voiceQuestions,
+                extractedEntities: analysis.extractedEntities,
+                analysis,
+                resumeUrl: resumeUpload.url,
+                ...(idCardUrl && { idCardUrl }),
+              } as any,
               ...(idCardUrl && { idCardUrl }),
             },
-          },
-        });
-      } else {
-        // Create new assessment plan
-        assessmentPlan = await prisma.assessmentPlan.create({
-          data: {
-            userId: req.user!.id,
-            resumeUrl: resumeResult.url,
-            resumeText: '', // Will be populated by resume parser later
-            status: 'DRAFT',
-            interviewPlan: {
-              resumeUrl: resumeResult.url,
+          });
+        } else {
+          // Create new assessment plan
+          logger.info('[Step 7] Creating new assessment plan');
+          assessmentPlan = await prisma.assessmentPlan.create({
+            data: {
+              userId: req.user.id,
+              resumeUrl: resumeUpload.url,
+              resumeText,
+              primarySkill: classification.keySkills[0] || analysis.candidateProfile.currentRole,
+              components: plan.components,
+              questionCounts: plan.questionCounts as any,
+              difficulty: plan.difficulty,
+              estimatedDuration: plan.duration,
+              skillBuckets: {
+                technical: analysis.coreSkills.technical,
+                business: analysis.coreSkills.business,
+                soft: analysis.coreSkills.soft,
+              },
+              status: 'DRAFT',
+              interviewPlan: {
+                classification: classification as any,
+                voiceQuestions,
+                extractedEntities: analysis.extractedEntities,
+                analysis,
+                resumeUrl: resumeUpload.url,
+                ...(idCardUrl && { idCardUrl }),
+              } as any,
               ...(idCardUrl && { idCardUrl }),
             },
+          });
+        }
+        logger.info(`[Step 7] Assessment plan created/updated successfully with ID: ${assessmentPlan.id}`);
+
+        // Clean up temp directory
+        if (tempResumeDir) {
+          logger.info('[Step 8] Cleaning up temp directory');
+          await fs.rm(tempResumeDir, { recursive: true, force: true });
+        }
+
+        logger.info(`[Step 8] Assessment completed successfully for user ${req.user.id}`);
+
+        // Step 8: Return response
+        res.json({
+          success: true,
+          data: {
+            sessionId: assessmentPlan.id,
+            plan: {
+              components: plan.components,
+              questionCounts: plan.questionCounts,
+              duration: plan.duration,
+              difficulty: plan.difficulty,
+              rationale: plan.rationale,
+            },
+            analysis: {
+              candidateProfile: analysis.candidateProfile,
+              professionalSummary: analysis.professionalSummary,
+              interviewFocus: analysis.interviewFocus,
+              classification: {
+                roleCategory: classification.roleCategory,
+                yearsExperience: classification.yearsExperience,
+                codingExpected: classification.codingExpected,
+                keySkills: classification.keySkills,
+              },
+            },
+            voiceQuestions,
+            resumeUrl: resumeUpload.url,
+            ...(idCardUrl && { idCardUrl }),
           },
         });
+      } catch (stepError: any) {
+        logger.error(`[Assessment Error] Failed during execution: ${stepError.message}`, {
+          error: stepError,
+          stack: stepError.stack,
+          userId: req.user.id,
+        });
+        throw stepError;
+      }
+    } catch (error: any) {
+      // Clean up temp directory on error
+      if (tempResumeDir) {
+        try {
+          await fs.rm(tempResumeDir, { recursive: true, force: true });
+          logger.info('Temp directory cleaned up after error');
+        } catch (cleanupError) {
+          logger.error('Error cleaning up temp directory:', cleanupError);
+        }
       }
 
-      res.json({
-        success: true,
-        data: {
-          sessionId: assessmentPlan.id,
-          resumeUrl: resumeResult.url,
-          ...(idCardUrl && { idCardUrl }),
-        },
+      logger.error('[Assessment Error] Top-level error handler:', {
+        message: error.message,
+        stack: error.stack,
+        code: error.code,
+        userId: req.user?.id,
       });
-    } catch (error) {
       next(error);
     }
   }
@@ -227,43 +391,44 @@ router.post('/voice/start', async (req: AuthRequest, res: Response, next: NextFu
 
     const plan = assessmentPlan.interviewPlan as any;
 
-    // Generate voice interview questions if not already present
+    // Use voice questions from assessment plan if they exist
     let voiceQuestions = plan?.voiceQuestions || [];
     
     if (voiceQuestions.length === 0) {
-      // Generate default voice questions based on role and resume
+      // Fallback: Generate default voice questions based on role and resume
+      logger.warn('[voice/start] No personalized questions found, using fallback static questions');
       const classification = plan?.classification;
       const jobTitle = role || classification?.primaryRole || 'Software Engineer';
       
       voiceQuestions = [
         {
           id: 'voice_1',
-          question: `Tell me about your experience as a ${jobTitle}.`,
-          category: 'experience',
+          text: `Tell me about your experience as a ${jobTitle}.`,
+          topic: 'experience',
         },
         {
           id: 'voice_2',
-          question: 'What are your greatest technical strengths?',
-          category: 'technical',
+          text: 'What are your greatest technical strengths?',
+          topic: 'technical',
         },
         {
           id: 'voice_3',
-          question: 'Describe a challenging project you worked on and how you overcame obstacles.',
-          category: 'problem_solving',
+          text: 'Describe a challenging project you worked on and how you overcame obstacles.',
+          topic: 'problem_solving',
         },
         {
           id: 'voice_4',
-          question: 'How do you stay updated with the latest technologies in your field?',
-          category: 'learning',
+          text: 'How do you stay updated with the latest technologies in your field?',
+          topic: 'learning',
         },
         {
           id: 'voice_5',
-          question: 'Why are you interested in this position and what are your career goals?',
-          category: 'motivation',
+          text: 'Why are you interested in this position and what are your career goals?',
+          topic: 'motivation',
         },
       ];
 
-      // Store questions in assessment plan
+      // Store fallback questions in assessment plan
       await prisma.assessmentPlan.update({
         where: { id: assessmentPlan.id },
         data: {
@@ -273,6 +438,8 @@ router.post('/voice/start', async (req: AuthRequest, res: Response, next: NextFu
           },
         },
       });
+    } else {
+      logger.info(`[voice/start] Using ${voiceQuestions.length} personalized questions from assessment plan`);
     }
 
     // Determine job role from various sources
@@ -433,10 +600,10 @@ router.post('/notify-answer', async (req: Request, res: Response, next: NextFunc
       throw new AppError('Question not found', 404, 'NOT_FOUND');
     }
 
-    // Store the answer
+    // Store the answer - handle both old and new question formats
     await sessionManager.addAnswer(sessionId, {
       questionId,
-      question: question.question,
+      question: normalizeQuestionText(question),
       transcript,
       timestamp: new Date(),
     });
@@ -479,13 +646,14 @@ router.post('/next-question', async (req: Request, res: Response, next: NextFunc
       });
     }
 
+    // Handle both old and new question formats
     res.json({
       success: true,
       completed: false,
       data: {
         questionId: nextQuestion.id,
-        question: nextQuestion.question,
-        category: nextQuestion.category,
+        question: normalizeQuestionText(nextQuestion),
+        category: normalizeQuestionCategory(nextQuestion),
       },
     });
   } catch (error) {

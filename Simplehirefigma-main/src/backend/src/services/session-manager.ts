@@ -200,7 +200,7 @@ export class SessionManager {
       return undefined;
     }
     
-    // Check if session is expired (older than 24 hours)
+    // Check if session is expired (older than SESSION_TTL seconds)
     const now = new Date();
     const sessionAge = now.getTime() - session.updatedAt.getTime();
     const isExpired = sessionAge > SESSION_TTL * 1000;

@@ -26,6 +26,7 @@ const DEMO_EMAILS = [
 ];
 
 // Inline password hashing to avoid import issues
+// Note: Using 12 salt rounds to match application config (see src/config/index.ts)
 const hashPassword = async (password: string): Promise<string> => {
   const saltRounds = 12;
   return bcrypt.hash(password, saltRounds);

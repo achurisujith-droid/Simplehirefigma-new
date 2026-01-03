@@ -134,7 +134,7 @@ Return ONLY valid JSON array:
     const content = response.choices[0]?.message?.content;
     if (!content) {
       logger.error('No response from OpenAI for coding challenge generation');
-      throw new Error('Failed to generate coding challenges. Please ensure OpenAI API is configured and try again.');
+      throw new Error('Failed to generate coding challenges. Please ensure OpenAI API key is properly configured and try again.');
     }
 
     // Parse the response
@@ -169,7 +169,7 @@ Return ONLY valid JSON array:
     return challenges.slice(0, challengeCount);
   } catch (error) {
     logger.error('Error generating coding challenges:', error);
-    throw new Error('Failed to generate coding challenges. Please ensure OpenAI API is configured correctly and try again.');
+    throw new Error('Failed to generate coding challenges. Please ensure OpenAI API key is properly configured and try again.');
   }
 }
 

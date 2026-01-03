@@ -188,7 +188,34 @@ export class SessionManager {
    * Get session by ID
    */
   async getSession(sessionId: string): Promise<InterviewSession | undefined> {
-    return this.getSessionData(sessionId);
+    logger.debug('Retrieving session', { sessionId });
+    const session = await this.getSessionData(sessionId);
+    
+    if (!session) {
+      logger.warn('Session not found', {
+        sessionId,
+        storage: useRedis ? 'redis' : 'in-memory',
+        timestamp: new Date().toISOString(),
+      });
+      return undefined;
+    }
+    
+    // Check if session is expired (older than 24 hours)
+    const now = new Date();
+    const sessionAge = now.getTime() - session.updatedAt.getTime();
+    const isExpired = sessionAge > SESSION_TTL * 1000;
+    
+    if (isExpired) {
+      logger.warn('Session expired', {
+        sessionId,
+        userId: session.userId,
+        lastUpdated: session.updatedAt.toISOString(),
+        ageHours: Math.floor(sessionAge / (1000 * 60 * 60)),
+        status: session.status,
+      });
+    }
+    
+    return session;
   }
 
   /**
@@ -197,6 +224,11 @@ export class SessionManager {
   async addAnswer(sessionId: string, answer: VoiceAnswer): Promise<void> {
     const session = await this.getSessionData(sessionId);
     if (!session) {
+      logger.error('Cannot add answer: Session not found', {
+        sessionId,
+        questionId: answer.questionId,
+        timestamp: new Date().toISOString(),
+      });
       throw new Error(`Session ${sessionId} not found`);
     }
 
@@ -206,8 +238,10 @@ export class SessionManager {
 
     logger.info('Added answer to session', {
       sessionId,
+      userId: session.userId,
       questionId: answer.questionId,
       answerLength: answer.transcript.length,
+      totalAnswers: session.answers.length,
     });
   }
 
@@ -217,17 +251,33 @@ export class SessionManager {
   async getNextQuestion(sessionId: string): Promise<VoiceQuestion | null> {
     const session = await this.getSessionData(sessionId);
     if (!session) {
+      logger.error('Cannot get next question: Session not found', {
+        sessionId,
+        timestamp: new Date().toISOString(),
+      });
       throw new Error(`Session ${sessionId} not found`);
     }
 
     const nextIndex = session.currentQuestionIndex + 1;
     if (nextIndex >= session.questions.length) {
+      logger.info('No more questions in session', {
+        sessionId,
+        userId: session.userId,
+        totalQuestions: session.questions.length,
+      });
       return null; // No more questions
     }
     
     session.currentQuestionIndex = nextIndex;
     session.updatedAt = new Date();
     await this.setSession(sessionId, session);
+
+    logger.debug('Advanced to next question', {
+      sessionId,
+      userId: session.userId,
+      questionIndex: nextIndex,
+      totalQuestions: session.questions.length,
+    });
 
     return session.questions[session.currentQuestionIndex];
   }
@@ -238,10 +288,20 @@ export class SessionManager {
   async getCurrentQuestion(sessionId: string): Promise<VoiceQuestion | null> {
     const session = await this.getSessionData(sessionId);
     if (!session) {
+      logger.error('Cannot get current question: Session not found', {
+        sessionId,
+        timestamp: new Date().toISOString(),
+      });
       throw new Error(`Session ${sessionId} not found`);
     }
 
     if (session.currentQuestionIndex >= session.questions.length) {
+      logger.warn('Current question index out of bounds', {
+        sessionId,
+        userId: session.userId,
+        currentIndex: session.currentQuestionIndex,
+        totalQuestions: session.questions.length,
+      });
       return null;
     }
 

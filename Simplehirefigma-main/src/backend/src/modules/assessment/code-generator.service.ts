@@ -67,104 +67,6 @@ function getPrimaryLanguage(classification: ProfileClassification): string {
 }
 
 /**
- * Generate fallback coding challenge
- */
-function getFallbackChallenge(
-  language: string,
-  difficulty: CodeDifficulty,
-  taskStyle: TaskStyle
-): CodingChallenge {
-  const challenges: Record<TaskStyle, CodingChallenge> = {
-    implement_function: {
-      id: uuidv4(),
-      questionText: `Write a function in ${language} that reverses a string without using built-in reverse methods.
-
-Example:
-Input: "hello"
-Output: "olleh"
-
-Requirements:
-- Handle empty strings
-- Preserve spaces and special characters
-- Time complexity should be O(n)`,
-      difficulty,
-      language,
-      evaluationCriteria: [
-        'Correct implementation',
-        'Edge case handling',
-        'Code clarity and style',
-        'Efficiency',
-      ],
-      taskStyle,
-    },
-    debug_code: {
-      id: uuidv4(),
-      questionText: `Debug the following ${language} code that is supposed to find the maximum value in an array but has bugs:
-
-\`\`\`${language}
-function findMax(arr) {
-  let max = 0;
-  for (let i = 1; i < arr.length; i++) {
-    if (arr[i] > max) {
-      max = arr[i];
-    }
-  }
-  return max;
-}
-\`\`\`
-
-Identify all bugs and provide the corrected code with explanation.`,
-      difficulty,
-      language,
-      evaluationCriteria: [
-        'Identified all bugs',
-        'Provided working solution',
-        'Clear explanation',
-        'Understanding of edge cases',
-      ],
-      taskStyle,
-    },
-    code_review: {
-      id: uuidv4(),
-      questionText: `Review the following ${language} code and provide feedback on potential issues, improvements, and best practices:
-
-\`\`\`${language}
-function processUserData(data) {
-  var result = [];
-  for (var i = 0; i < data.length; i++) {
-    if (data[i].age > 18) {
-      result.push({
-        name: data[i].firstName + ' ' + data[i].lastName,
-        age: data[i].age,
-        email: data[i].email
-      });
-    }
-  }
-  return result;
-}
-\`\`\`
-
-Provide your code review covering:
-- Potential bugs or issues
-- Performance considerations
-- Best practices violations
-- Suggested improvements`,
-      difficulty,
-      language,
-      evaluationCriteria: [
-        'Identified key issues',
-        'Suggested practical improvements',
-        'Demonstrated knowledge of best practices',
-        'Code quality awareness',
-      ],
-      taskStyle,
-    },
-  };
-
-  return challenges[taskStyle];
-}
-
-/**
  * Generate coding challenges using GPT-4o
  */
 export async function generateCodingChallenges(
@@ -231,23 +133,15 @@ Return ONLY valid JSON array:
 
     const content = response.choices[0]?.message?.content;
     if (!content) {
-      logger.warn('No response from OpenAI for coding challenge generation, using fallback');
-      const challenges: CodingChallenge[] = [];
-      for (let i = 0; i < challengeCount; i++) {
-        challenges.push(getFallbackChallenge(primaryLanguage, difficulty, style));
-      }
-      return challenges;
+      logger.error('No response from OpenAI for coding challenge generation');
+      throw new Error('Failed to generate coding challenges. Please ensure OpenAI API is configured and try again.');
     }
 
     // Parse the response
     const challengesData = safeJsonParse<any[]>(content);
     if (!challengesData || !Array.isArray(challengesData)) {
-      logger.warn('Failed to parse coding challenge response, using fallback');
-      const challenges: CodingChallenge[] = [];
-      for (let i = 0; i < challengeCount; i++) {
-        challenges.push(getFallbackChallenge(primaryLanguage, difficulty, style));
-      }
-      return challenges;
+      logger.error('Failed to parse coding challenge response from OpenAI');
+      throw new Error('Failed to generate coding challenges. Invalid response format from OpenAI.');
     }
 
     // Transform and validate challenges
@@ -267,24 +161,15 @@ Return ONLY valid JSON array:
 
     // Ensure we have the right number of challenges
     if (challenges.length < challengeCount) {
-      const additionalCount = challengeCount - challenges.length;
-      for (let i = 0; i < additionalCount; i++) {
-        challenges.push(getFallbackChallenge(primaryLanguage, difficulty, style));
-      }
+      logger.error(`OpenAI generated ${challenges.length} challenges but ${challengeCount} were requested`);
+      throw new Error(`Failed to generate the requested number of coding challenges. Expected ${challengeCount}, got ${challenges.length}.`);
     }
 
     logger.info(`Successfully generated ${challenges.length} coding challenges`);
     return challenges.slice(0, challengeCount);
   } catch (error) {
     logger.error('Error generating coding challenges:', error);
-    const primaryLanguage = language || getPrimaryLanguage(classification);
-    const difficulty = determineCodeDifficulty(classification.yearsExperience);
-    const style = taskStyle || determineTaskStyle(classification.yearsExperience);
-    const challenges: CodingChallenge[] = [];
-    for (let i = 0; i < challengeCount; i++) {
-      challenges.push(getFallbackChallenge(primaryLanguage, difficulty, style));
-    }
-    return challenges;
+    throw new Error('Failed to generate coding challenges. Please ensure OpenAI API is configured correctly and try again.');
   }
 }
 

@@ -111,10 +111,18 @@ export const updateInterviewProgress = async (
   try {
     const progress = req.body;
 
-    const userData = await prisma.userData.update({
+    // Use upsert to handle cases where userData doesn't exist yet
+    const userData = await prisma.userData.upsert({
       where: { userId: req.user!.id },
-      data: {
+      update: {
         interviewProgress: progress,
+      },
+      create: {
+        userId: req.user!.id,
+        purchasedProducts: [],
+        interviewProgress: progress,
+        idVerificationStatus: 'not-started',
+        referenceCheckStatus: 'not-started',
       },
     });
 
@@ -136,10 +144,23 @@ export const updateIdVerificationStatus = async (
   try {
     const { status } = req.body;
 
-    const userData = await prisma.userData.update({
+    // Use upsert to handle cases where userData doesn't exist yet
+    const userData = await prisma.userData.upsert({
       where: { userId: req.user!.id },
-      data: {
+      update: {
         idVerificationStatus: status,
+      },
+      create: {
+        userId: req.user!.id,
+        purchasedProducts: [],
+        interviewProgress: {
+          documentsUploaded: false,
+          voiceInterview: false,
+          mcqTest: false,
+          codingChallenge: false,
+        },
+        idVerificationStatus: status,
+        referenceCheckStatus: 'not-started',
       },
     });
 
@@ -161,9 +182,22 @@ export const updateReferenceCheckStatus = async (
   try {
     const { status } = req.body;
 
-    const userData = await prisma.userData.update({
+    // Use upsert to handle cases where userData doesn't exist yet
+    const userData = await prisma.userData.upsert({
       where: { userId: req.user!.id },
-      data: {
+      update: {
+        referenceCheckStatus: status,
+      },
+      create: {
+        userId: req.user!.id,
+        purchasedProducts: [],
+        interviewProgress: {
+          documentsUploaded: false,
+          voiceInterview: false,
+          mcqTest: false,
+          codingChallenge: false,
+        },
+        idVerificationStatus: 'not-started',
         referenceCheckStatus: status,
       },
     });
